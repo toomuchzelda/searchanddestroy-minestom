@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: me.toomuchzelda.sndminestom.Main
+Multi-Release: true
+
