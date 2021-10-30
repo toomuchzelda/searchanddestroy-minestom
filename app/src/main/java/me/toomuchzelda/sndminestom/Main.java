@@ -3,10 +3,110 @@
  */
 package me.toomuchzelda.sndminestom;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.logging.Logger;
+
+import me.toomuchzelda.sndminestom.core.CustomPlayer;
+import me.toomuchzelda.sndminestom.core.MathUtils;
+import me.toomuchzelda.sndminestom.game.Game;
+import me.toomuchzelda.sndminestom.game.GameTeam;
+import me.toomuchzelda.sndminestom.game.GameType;
+import me.toomuchzelda.sndminestom.game.teamarena.CaptureTheFlag;
+import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
+import me.toomuchzelda.sndminestom.game.teamarena.SearchAndDestroy;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.minestom.server.color.Color;
+import net.minestom.server.entity.GameMode;
+import net.minestom.server.listener.manager.PacketController;
+import net.minestom.server.listener.manager.PacketListenerManager;
+import net.minestom.server.network.ConnectionManager;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.attribute.Attribute;
+import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Player;
+import net.minestom.server.entity.PlayerSkin;
+import net.minestom.server.event.Event;
+import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.player.PlayerLoginEvent;
+import net.minestom.server.event.player.PlayerSkinInitEvent;
+import net.minestom.server.event.player.PlayerSpawnEvent;
+import net.minestom.server.instance.AnvilLoader;
+import net.minestom.server.instance.Chunk;
+import net.minestom.server.instance.ChunkGenerator;
+import net.minestom.server.instance.ChunkPopulator;
+import net.minestom.server.instance.InstanceContainer;
+import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.instance.batch.ChunkBatch;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.world.biomes.Biome;
 
 public class Main {
-    
-	MinecraftServer mcServer = MinecraftServer.init();
+ 
+	public static Game currentGame;
+	public static GameType nextGameType = null;
+	private static final Logger logger = Logger.getLogger("SNDMinestom");
 	
+	public static void main(String[] args) {
+		MinecraftServer mcServer = MinecraftServer.init();
+		
+		InstanceManager instanceManager = MinecraftServer.getInstanceManager();
+		
+		AnvilLoader anvil = new AnvilLoader("world");
+		InstanceContainer instance = instanceManager.createInstanceContainer(anvil);
+		
+		currentGame = createGame(nextGameType, instance);
+		
+		ConnectionManager connectionManager = MinecraftServer.getConnectionManager();
+		connectionManager.setPlayerProvider(CustomPlayer::new);
+		
+		GlobalEventHandler globalEventHandler = MinecraftServer.getGlobalEventHandler();
+		globalEventHandler.addListener(PlayerLoginEvent.class, event -> {
+			final Player player = event.getPlayer();
+			event.setSpawningInstance(instance);
+			player.setRespawnPoint(new Pos(0, 100, 0));
+		});
+		
+		globalEventHandler.addListener(PlayerSkinInitEvent.class, event -> {
+			//PlayerSkin skin = PlayerSkin.fromUuid(event.getPlayer().getUuid().toString());
+			PlayerSkin skin = PlayerSkin.fromUsername("toomuchzelda");
+			event.setSkin(skin);
+		});
+		
+		globalEventHandler.addListener(PlayerSpawnEvent.class, event -> {
+			//event.getPlayer().setGameMode(GameMode.CREATIVE);
+			/*event.getPlayer().sendMessage(Component.text("asdf"));
+			event.getPlayer().sendMessage(Component.text("DARK_RED").color(NamedTextColor.DARK_RED));
+			event.getPlayer().sendMessage(Component.text("RED").color(NamedTextColor.RED));
+			event.getPlayer().sendMessage(Component.text("DARK_BLUE").color(NamedTextColor.DARK_BLUE));*/
+		});
+		
+		mcServer.start("127.0.0.1", 25565);
+	}
+	
+	private static Game createGame(GameType gameType, InstanceContainer instance) {
+		if(nextGameType == null) {
+			int random = MathUtils.randomRange(0, 2);
+			nextGameType = GameType.values()[random];
+		}
+		
+		Game nextGame;
+		if(nextGameType == GameType.KOTH)
+			nextGame = new KingOfTheHill(instance);
+		else if(nextGameType == GameType.CTF)
+			nextGame = new CaptureTheFlag(instance);
+		else
+			nextGame = new SearchAndDestroy(instance); //else if SND
+		
+		nextGameType = null;
+		return nextGame;
+	}
+	
+	public static Logger getLogger() {
+		return logger;
+	}
 }
