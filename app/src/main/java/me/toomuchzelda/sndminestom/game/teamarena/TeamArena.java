@@ -13,6 +13,11 @@ public abstract class TeamArena extends TeamGame
 	}
 	
 	@Override
+	public void tick() {
+		super.tick();
+	}
+	
+	@Override
 	public String mapPath() {
 		return "Maps/TeamArena";
 	}

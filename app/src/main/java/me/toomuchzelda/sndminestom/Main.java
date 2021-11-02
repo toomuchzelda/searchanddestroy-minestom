@@ -55,11 +55,16 @@ public class Main {
 		MinecraftServer mcServer = MinecraftServer.init();
 		
 		InstanceManager instanceManager = MinecraftServer.getInstanceManager();
-		
-		AnvilLoader anvil = new AnvilLoader("world");
-		InstanceContainer instance = instanceManager.createInstanceContainer(anvil);
+		InstanceContainer instance = instanceManager.createInstanceContainer();
 		
 		currentGame = createGame(nextGameType, instance);
+		
+		//the game tick
+		MinecraftServer.getUpdateManager().addTickEndCallback(value -> {
+			currentGame.tick();
+			//instance.getPlayers().forEach(player -> player.sendMessage("asdf"));
+			System.out.println(currentGame.gameTick);
+		});
 		
 		ConnectionManager connectionManager = MinecraftServer.getConnectionManager();
 		connectionManager.setPlayerProvider(CustomPlayer::new);
@@ -91,7 +96,8 @@ public class Main {
 	private static Game createGame(GameType gameType, InstanceContainer instance) {
 		if(nextGameType == null) {
 			int random = MathUtils.randomRange(0, 2);
-			nextGameType = GameType.values()[random];
+			//nextGameType = GameType.values()[random];
+			nextGameType = GameType.KOTH;
 		}
 		
 		Game nextGame;

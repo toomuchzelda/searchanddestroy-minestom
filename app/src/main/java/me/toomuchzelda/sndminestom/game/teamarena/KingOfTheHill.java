@@ -14,7 +14,7 @@ public class KingOfTheHill extends TeamArena
 	@Override
 	public void tick()
 	{
-	
+		super.tick();
 	}
 	
 	@Override

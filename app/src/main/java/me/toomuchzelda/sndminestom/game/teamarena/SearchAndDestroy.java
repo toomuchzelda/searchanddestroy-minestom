@@ -13,7 +13,7 @@ public class SearchAndDestroy extends TeamArena
 	@Override
 	public void tick()
 	{
-	
+		super.tick();
 	}
 	
 	@Override

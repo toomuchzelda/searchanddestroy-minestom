@@ -13,7 +13,7 @@ public class CaptureTheFlag extends TeamArena
 	@Override
 	public void tick()
 	{
-	
+		super.tick();
 	}
 	
 	@Override

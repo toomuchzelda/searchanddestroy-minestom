@@ -10,4 +10,9 @@ public abstract class TeamGame extends Game
 		super(instance);
 	}
 	
+	@Override
+	public void tick() {
+		super.tick();
+	}
+	
 }
