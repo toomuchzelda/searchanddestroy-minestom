@@ -1,4 +1,4 @@
-package me.toomuchzelda.sndminestom.game;
+package me.toomuchzelda.sndminestom.game.teamarena;
 
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.color.Color;
@@ -7,7 +7,7 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 
 //uhhhh might need to be renamed TeamSettings and GameTeam become lib's thing
-public enum GameTeam
+public enum TeamColours
 {
 	NONE("Players", "Players", convert(NamedTextColor.WHITE), convert(NamedTextColor.WHITE),
 			ItemStack.of(Material.PLAYER_HEAD), DyeColor.WHITE),
@@ -38,7 +38,7 @@ public enum GameTeam
 	private final ItemStack hat;
 	private final DyeColor dyeColour;
 	
-	private GameTeam(String name, String simpleName, Color colour, Color darkColour, ItemStack hat, DyeColor dyeColor) {
+	private TeamColours(String name, String simpleName, Color colour, Color darkColour, ItemStack hat, DyeColor dyeColor) {
 		this.name = name;
 		this.simpleName = simpleName;
 		this.colour = colour;

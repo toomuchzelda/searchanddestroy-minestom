@@ -26,6 +26,7 @@ dependencies {
     // Use JUnit test framework.
 
 	implementation 'com.github.Minestom:Minestom:c9f52397cb'
+    implementation 'org.yaml:snakeyaml:1.29'
 }
 
 jar {

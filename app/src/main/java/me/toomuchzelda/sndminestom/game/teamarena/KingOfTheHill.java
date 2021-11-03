@@ -6,9 +6,9 @@ public class KingOfTheHill extends TeamArena
 {
 	public final String mapPath = super.mapPath + "/KOTH";
 	
-	public KingOfTheHill(InstanceContainer instance)
+	public KingOfTheHill(InstanceContainer instance, String name)
 	{
-		super(instance);
+		super(instance, name);
 	}
 	
 	@Override
@@ -21,5 +21,10 @@ public class KingOfTheHill extends TeamArena
 	public String mapPath()
 	{
 		return super.mapPath() + "/KOTH";
+	}
+	
+	@Override
+	public void parseConfig(String filename) {
+		super.parseConfig(filename);
 	}
 }

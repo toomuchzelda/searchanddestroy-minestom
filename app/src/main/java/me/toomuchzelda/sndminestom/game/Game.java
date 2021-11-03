@@ -15,8 +15,10 @@ public abstract class Game
 	protected InstanceContainer instance;
 	protected AnvilLoader anvilLoader;
 	protected GameState gameState;
+	protected GameType nextGame = GameType.KOTH;
+	private String name;
 	
-	public Game(InstanceContainer instance) {
+	public Game(InstanceContainer instance, String name) {
 		this.instance = instance;
 		
 		//Read + load maps
@@ -33,20 +35,19 @@ public abstract class Game
 		Main.getLogger().info("Loading Map: " + chosenMapName);
 		anvilLoader = new AnvilLoader(chosenMapName);
 		instance.setChunkLoader(anvilLoader);
+		parseConfig(chosenMapName + "\\config.yml");
 		
 		gameTick = 0;
 		gameState = GameState.PREGAME;
-		
-		
 	}
 	
 	public void tick() {
 		gameTick++;
-		for(Player p : instance.getPlayers()) {
-			CustomPlayer customPlayer = (CustomPlayer) p;
-			customPlayer.sendMessage("ticking: " + gameTick);
-		}
+		
 	}
 	
 	public abstract String mapPath();
+	
+	//parse map config, unique per game
+	public abstract void parseConfig(String filename);
 }

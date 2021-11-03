@@ -5,9 +5,9 @@ import net.minestom.server.instance.InstanceContainer;
 public abstract class TeamGame extends Game
 {
 	
-	public TeamGame(InstanceContainer instance)
+	public TeamGame(InstanceContainer instance, String name)
 	{
-		super(instance);
+		super(instance, name);
 	}
 	
 	@Override

@@ -6,8 +6,8 @@ public class SearchAndDestroy extends TeamArena
 {
 	public final String mapPath = super.mapPath + "/SND";
 	
-	public SearchAndDestroy(InstanceContainer instance) {
-		super(instance);
+	public SearchAndDestroy(InstanceContainer instance, String name) {
+		super(instance, name);
 	}
 	
 	@Override
@@ -20,5 +20,10 @@ public class SearchAndDestroy extends TeamArena
 	public String mapPath()
 	{
 		return super.mapPath() + "/SND";
+	}
+	
+	@Override
+	public void parseConfig(String filename) {
+		super.parseConfig(filename);
 	}
 }
