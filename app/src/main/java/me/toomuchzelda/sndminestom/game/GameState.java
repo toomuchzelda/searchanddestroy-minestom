@@ -2,5 +2,5 @@ package me.toomuchzelda.sndminestom.game;
 
 public enum GameState
 {
-	PREGAME, GAME_STARTING, LIVE, END, DEAD;
+	PREGAME, TEAMS_CHOSEN, GAME_STARTING, LIVE, END, DEAD;
 }

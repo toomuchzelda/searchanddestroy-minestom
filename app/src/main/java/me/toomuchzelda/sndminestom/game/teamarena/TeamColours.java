@@ -1,6 +1,7 @@
 package me.toomuchzelda.sndminestom.game.teamarena;
 
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.minestom.server.color.Color;
 import net.minestom.server.color.DyeColor;
 import net.minestom.server.item.ItemStack;
@@ -73,5 +74,9 @@ public enum TeamColours
 	
 	public DyeColor getDyeColour() {
 		return dyeColour;
+	}
+	
+	public TextColor getTextColor() {
+		return TextColor.color(colour.asRGB());
 	}
 }

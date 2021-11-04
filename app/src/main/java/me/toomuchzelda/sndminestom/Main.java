@@ -11,9 +11,12 @@ import me.toomuchzelda.sndminestom.core.commands.CommandStop;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
+import me.toomuchzelda.sndminestom.listeners.EventListeners;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.event.instance.InstanceTickEvent;
+import net.minestom.server.instance.Instance;
+import net.minestom.server.listener.manager.PacketListenerManager;
 import net.minestom.server.network.ConnectionManager;
 
 import net.minestom.server.MinecraftServer;
@@ -31,6 +34,7 @@ public class Main {
  
 	public static Game currentGame;
 	private static final Logger logger = Logger.getLogger("SNDMinestom");
+	private static EventListeners eventListeners;
 	
 	private static final ConcurrentHashMap<InstanceContainer, Game> gameInstances = new ConcurrentHashMap<>();
 	
@@ -78,6 +82,8 @@ public class Main {
 		
 		registerCommands();
 		
+		eventListeners = new EventListeners();
+		
 		mcServer.start("127.0.0.1", 25565);
 	}
 	
@@ -107,5 +113,13 @@ public class Main {
 	private static void registerCommands() {
 		CommandManager manager = MinecraftServer.getCommandManager();
 		manager.register(new CommandStop());
+	}
+	
+	public static Game getInstanceGame(Instance instance) {
+		if(instance instanceof InstanceContainer instanceContainer) {
+			return gameInstances.get(instanceContainer);
+		}
+		else
+			return null;
 	}
 }

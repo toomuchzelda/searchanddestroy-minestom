@@ -1,6 +1,7 @@
 package me.toomuchzelda.sndminestom.core;
 
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
+import me.toomuchzelda.sndminestom.game.teamarena.TeamArenaTeam;
 import me.toomuchzelda.sndminestom.game.teamarena.TeamColours;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.player.PlayerConnection;
@@ -10,22 +11,23 @@ import java.util.UUID;
 
 public class CustomPlayer extends Player
 {
-	private TeamColours teamColour;
+	//team they're on if any
+	private TeamArenaTeam team;
 	private Rank rank;
 	
 	public CustomPlayer(@NotNull UUID uuid, @NotNull String username, @NotNull PlayerConnection playerConnection)
 	{
 		super(uuid, username, playerConnection);
-		teamColour = null;
+		team = null;
 		rank = Rank.PLAYER;
 	}
 	
-	public void setGameTeam(TeamColours team) {
-		this.teamColour = team;
+	public void setGameTeam(TeamArenaTeam team) {
+		this.team = team;
 	}
 	
-	public TeamColours getGameTeam() {
-		return this.teamColour;
+	public TeamArenaTeam getTeamArenaTeam() {
+		return this.team;
 	}
 	
 	public Rank getRank() {

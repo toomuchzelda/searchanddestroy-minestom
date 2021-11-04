@@ -16,7 +16,7 @@ public abstract class Game
 	protected AnvilLoader anvilLoader;
 	protected GameState gameState;
 	protected GameType nextGame = GameType.KOTH;
-	private String name;
+	private String lobbyName;
 	
 	public Game(InstanceContainer instance, String name) {
 		this.instance = instance;
@@ -39,6 +39,7 @@ public abstract class Game
 		
 		gameTick = 0;
 		gameState = GameState.PREGAME;
+		lobbyName = name;
 	}
 	
 	public void tick() {
