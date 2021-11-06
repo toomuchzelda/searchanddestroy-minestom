@@ -51,4 +51,8 @@ public abstract class Game
 	
 	//parse map config, unique per game
 	public abstract void parseConfig(String filename);
+	
+	public GameState getGameState() {
+		return gameState;
+	}
 }

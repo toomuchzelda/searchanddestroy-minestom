@@ -11,6 +11,7 @@ import me.toomuchzelda.sndminestom.core.commands.CommandStop;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
+import me.toomuchzelda.sndminestom.game.teamarena.commands.CommandKit;
 import me.toomuchzelda.sndminestom.listeners.EventListeners;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.command.CommandManager;
@@ -113,6 +114,7 @@ public class Main {
 	private static void registerCommands() {
 		CommandManager manager = MinecraftServer.getCommandManager();
 		manager.register(new CommandStop());
+		manager.register(new CommandKit());
 	}
 	
 	public static Game getInstanceGame(Instance instance) {

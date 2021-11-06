@@ -23,6 +23,11 @@ public class SearchAndDestroy extends TeamArena
 	}
 	
 	@Override
+	public boolean canSelectKitNow() {
+		return gameState.isPreGame();
+	}
+	
+	@Override
 	public void parseConfig(String filename) {
 		super.parseConfig(filename);
 	}

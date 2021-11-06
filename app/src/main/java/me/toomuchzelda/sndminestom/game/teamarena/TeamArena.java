@@ -3,6 +3,11 @@ package me.toomuchzelda.sndminestom.game.teamarena;
 import me.toomuchzelda.sndminestom.Main;
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
 import me.toomuchzelda.sndminestom.game.Game;
+import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
+import me.toomuchzelda.sndminestom.game.teamarena.kits.KitNone;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
+import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -17,15 +22,21 @@ import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.packet.server.play.ParticlePacket;
+import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.particle.Particle;
 import net.minestom.server.particle.ParticleCreator;
+import net.minestom.server.sound.SoundEvent;
+import org.jetbrains.annotations.NotNull;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public abstract class TeamArena extends Game
@@ -34,6 +45,8 @@ public abstract class TeamArena extends Game
 	protected TeamArenaTeam[] teams;
 	protected ConcurrentLinkedQueue<CustomPlayer> joiningQueue = new ConcurrentLinkedQueue<>();
 	
+	private Kit[] kits;
+	private ConcurrentHashMap<UUID, Kit> chosenKits = new ConcurrentHashMap<>();
 	protected ItemStack kitMenuItem;
 	
 	public TeamArena(InstanceContainer instance, String name)
@@ -44,7 +57,10 @@ public abstract class TeamArena extends Game
 		kitMenuItem = ItemStack.builder(Material.FEATHER).amount(1)
 				.displayName(Component.text("Select a kit").color(NamedTextColor.BLUE)
 						.decoration(TextDecoration.ITALIC, false)).build();
+	
+		kits = new Kit[]{new KitNone()};
 	}
+	
 	
 	@Override
 	public void tick() {
@@ -62,7 +78,7 @@ public abstract class TeamArena extends Game
 		
 		//process players that just joined
 		while(!joiningQueue.isEmpty()) {
-			CustomPlayer player = (CustomPlayer) joiningQueue.remove();
+			CustomPlayer player = joiningQueue.remove();
 			Main.getLogger().info("Processing queue " + player.getUsername());
 			giveLobbyItems(player);
 		}
@@ -71,6 +87,40 @@ public abstract class TeamArena extends Game
 	@Override
 	public String mapPath() {
 		return "Maps/TeamArena";
+	}
+	
+	public void queueJoiningPlayer(CustomPlayer player) {
+		joiningQueue.add(player);
+	}
+	
+	public void giveLobbyItems(CustomPlayer player) {
+		PlayerInventory inventory = player.getInventory();
+		inventory.setItemStack(0, kitMenuItem);
+	}
+	
+	public abstract boolean canSelectKitNow();
+	
+	public void selectKit(CustomPlayer player, String kitName) {
+		boolean found = false;
+		for(int i = 0; i < kits.length; i++) {
+			if(kits[i].getName().equalsIgnoreCase(kitName)) {
+				chosenKits.put(player.getUuid(), kits[i]);
+				found = true;
+				player.sendMessage(Component.text("Using kit " + kitName).color(NamedTextColor.BLUE));
+				//play sound
+				SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.PLAYER,
+						SoundEvent.BLOCK_NOTE_BLOCK_PLING, player.getPosition(), 1f, 2f);
+				player.sendPacket(packet);
+				break;
+			}
+		}
+		
+		if(!found)
+			player.sendMessage(Component.text("Kit " + kitName + " doesn't exist").color(NamedTextColor.RED));
+	}
+	
+	public Kit[] getKits() {
+		return kits;
 	}
 	
 	@Override
@@ -126,14 +176,5 @@ public abstract class TeamArena extends Game
 		{
 			e.printStackTrace();
 		}
-	}
-	
-	public void queueJoiningPlayer(CustomPlayer player) {
-		joiningQueue.add(player);
-	}
-	
-	public void giveLobbyItems(CustomPlayer player) {
-		PlayerInventory inventory = player.getInventory();
-		inventory.setItemStack(0, kitMenuItem);
 	}
 }

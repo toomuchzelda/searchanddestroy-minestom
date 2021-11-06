@@ -23,6 +23,11 @@ public class CaptureTheFlag extends TeamArena
 	}
 	
 	@Override
+	public boolean canSelectKitNow() {
+		return !gameState.isEndGame();
+	}
+	
+	@Override
 	public void parseConfig(String filename) {
 		super.parseConfig(filename);
 	}

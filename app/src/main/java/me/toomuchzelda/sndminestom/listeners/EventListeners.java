@@ -18,8 +18,8 @@ public class EventListeners
 		eventHandler.addListener(AddEntityToInstanceEvent.class, event -> {
 			if(event.getEntity() instanceof CustomPlayer cPlayer) {
 				//Main.getLogger().info("caught customPlayer joining in event");
-				
 				Game game = Main.getInstanceGame(event.getInstance());
+				cPlayer.setGame(game);
 				if(game instanceof TeamArena teamArena) {
 					teamArena.queueJoiningPlayer(cPlayer);
 				}
