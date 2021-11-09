@@ -3,20 +3,27 @@
  */
 package me.toomuchzelda.sndminestom;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
+import me.toomuchzelda.sndminestom.core.MathUtils;
 import me.toomuchzelda.sndminestom.core.commands.CommandStop;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
 import me.toomuchzelda.sndminestom.game.teamarena.commands.CommandKit;
 import me.toomuchzelda.sndminestom.listeners.EventListeners;
+import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.event.instance.InstanceTickEvent;
-import net.minestom.server.instance.Instance;
+import net.minestom.server.instance.*;
+import net.minestom.server.instance.batch.ChunkBatch;
+import net.minestom.server.instance.block.Block;
 import net.minestom.server.listener.manager.PacketListenerManager;
 import net.minestom.server.network.ConnectionManager;
 
@@ -28,23 +35,26 @@ import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.player.PlayerLoginEvent;
 import net.minestom.server.event.player.PlayerSkinInitEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
-import net.minestom.server.instance.InstanceContainer;
-import net.minestom.server.instance.InstanceManager;
+import net.minestom.server.network.packet.server.play.SoundEffectPacket;
+import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.world.biomes.Biome;
 
 public class Main {
- 
-	public static Game currentGame;
+	
 	private static final Logger logger = Logger.getLogger("SNDMinestom");
 	private static EventListeners eventListeners;
 	
 	private static final ConcurrentHashMap<InstanceContainer, Game> gameInstances = new ConcurrentHashMap<>();
 	
 	public static void main(String[] args) {
+		//System.setProperty("minestom.tps", "20");
+		
 		MinecraftServer mcServer = MinecraftServer.init();
 		
 		//Create the first game
 		InstanceManager instanceManager = MinecraftServer.getInstanceManager();
 		InstanceContainer instance = instanceManager.createInstanceContainer();
+		//instance.setChunkGenerator(new GeneratorDemo());
 		Game firstGame = new KingOfTheHill(instance, "Official Lobby");
 		gameInstances.put(instance, firstGame);
 		
@@ -68,24 +78,31 @@ public class Main {
 			event.setSkin(skin);
 		});
 		
-		globalEventHandler.addListener(PlayerSpawnEvent.class, event -> {
+		//globalEventHandler.addListener(PlayerSpawnEvent.class, event -> {
 			//event.getPlayer().setGameMode(GameMode.CREATIVE);
 			/*event.getPlayer().sendMessage(Component.text("asdf"));
 			event.getPlayer().sendMessage(Component.text("DARK_RED").color(NamedTextColor.DARK_RED));
 			event.getPlayer().sendMessage(Component.text("RED").color(NamedTextColor.RED));
 			event.getPlayer().sendMessage(Component.text("DARK_BLUE").color(NamedTextColor.DARK_BLUE));*/
-		});
+		//});
 		
 		//Run the game ticks on every instance tick
 		globalEventHandler.addListener(InstanceTickEvent.class, instanceTickEvent -> {
+			
+			
 			gameInstances.get(instanceTickEvent.getInstance()).tick();
+			/*for(Player p : instanceTickEvent.getInstance().getPlayers()) {
+				//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
+				p.sendMessage(Component.text("Tick duration ms: " + (instanceTickEvent.getDuration())).color(NamedTextColor.RED));
+				//p.sendPacket(packet);
+			}*/
 		});
 		
 		registerCommands();
 		
 		eventListeners = new EventListeners();
 		
-		mcServer.start("127.0.0.1", 25565);
+		mcServer.start("0.0.0.0", 25565);
 	}
 	
 	/*private static Game createGame(GameType gameType, InstanceContainer instance) {
@@ -123,5 +140,30 @@ public class Main {
 		}
 		else
 			return null;
+	}
+	
+	//in case of emergency
+	private static class GeneratorDemo implements ChunkGenerator
+	{
+		@Override
+		public void generateChunkData(ChunkBatch batch, int chunkX, int chunkZ) {
+			for(byte x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
+				for(byte z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
+					for(byte y = 0; y < 40; y++) {
+						batch.setBlock(x, y, z, Block.STONE);
+					}
+				}
+			}
+		}
+		
+		@Override
+		public void fillBiomes(Biome[] biomes, int chunkX, int chunkZ) {
+			Arrays.fill(biomes, Biome.PLAINS);
+		}
+		
+		@Override
+		public List<ChunkPopulator> getPopulators() {
+			return null;
+		}
 	}
 }

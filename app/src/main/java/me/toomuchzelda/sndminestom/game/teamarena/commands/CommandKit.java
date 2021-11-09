@@ -41,13 +41,13 @@ public class CommandKit extends Command
 		
 		setDefaultExecutor((sender, context) -> {
 			sender.sendMessage(Component.text("Usage: /kit <kit name>").color(NamedTextColor.RED));
-			Component kitList = Component.text("All the kits: ").color(NamedTextColor.BLUE);
+			Component kitList = Component.text("Available kits: ").color(NamedTextColor.BLUE);
 			//if they passed the setCondition() then all the stuff here should be valid and not need checking
 			// theoretically
 			Game game = ((CustomPlayer) sender.asPlayer()).getGame();
 			Kit[] kits = ((TeamArena) game).getKits();
 			for(int i = 0; i < kits.length; i++) {
-				Main.getLogger().info(kits[i].getName());
+				//Main.getLogger().info(kits[i].getName());
 				kitList = kitList.append(Component.text(kits[i].getName() + ", ").color(NamedTextColor.BLUE));
 			}
 			sender.sendMessage(kitList);

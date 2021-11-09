@@ -11,7 +11,7 @@ import java.io.File;
 
 public abstract class Game
 {
-	public long gameTick;
+	protected long gameTick;
 	protected InstanceContainer instance;
 	protected AnvilLoader anvilLoader;
 	protected GameState gameState;
@@ -35,7 +35,7 @@ public abstract class Game
 		Main.getLogger().info("Loading Map: " + chosenMapName);
 		anvilLoader = new AnvilLoader(chosenMapName);
 		instance.setChunkLoader(anvilLoader);
-		parseConfig(chosenMapName + "\\config.yml");
+		parseConfig(chosenMapName + "/config.yml");
 		
 		gameTick = 0;
 		gameState = GameState.PREGAME;
