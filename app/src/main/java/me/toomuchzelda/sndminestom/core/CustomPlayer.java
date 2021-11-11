@@ -26,7 +26,7 @@ public class CustomPlayer extends Player
 		rank = Rank.PLAYER;
 	}
 	
-	public void setGameTeam(TeamArenaTeam team) {
+	public void setTeamArenaTeam(TeamArenaTeam team) {
 		this.team = team;
 	}
 	

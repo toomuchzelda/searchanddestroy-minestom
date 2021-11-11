@@ -20,4 +20,13 @@ public class MathUtils
 	public static int randomRange(int min, int max) {
 		return randomMax(max) + min;
 	}
+	
+	public static void shuffleArray(Object[] array) {
+		for(int i = 0; i < array.length; i++) {
+			int rand = MathUtils.randomMax(array.length - 1);
+			Object temp = array[rand];
+			array[rand] = array[i];
+			array[i] = temp;
+		}
+	}
 }

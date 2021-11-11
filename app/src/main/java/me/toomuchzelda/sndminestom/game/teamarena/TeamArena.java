@@ -2,6 +2,7 @@ package me.toomuchzelda.sndminestom.game.teamarena;
 
 import me.toomuchzelda.sndminestom.Main;
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
+import me.toomuchzelda.sndminestom.core.MathUtils;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.GameState;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
@@ -34,10 +35,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.Array;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -50,6 +48,7 @@ public abstract class TeamArena extends Game
 	private Kit[] kits;
 	private ConcurrentHashMap<UUID, Kit> chosenKits = new ConcurrentHashMap<>();
 	protected ItemStack kitMenuItem;
+	protected boolean teamsDecided = false;
 	
 	//ticks of wait time before teams are decided
 	protected static final int preTeamsTime = 25 * 20;
@@ -57,7 +56,7 @@ public abstract class TeamArena extends Game
 	protected static final int preGameStartingTime = 25 * 20;
 	//ticks of game starting time
 	protected static final int gameStartingTime = 10 * 20;
-	protected static final int totalWaitingTime = 30 * 20;//preTeamsTime + preGameStartingTime + gameStartingTime;
+	protected static final int totalWaitingTime = preTeamsTime + preGameStartingTime + gameStartingTime;
 	
 	protected static final int minPlayersRequired = 1;
 	protected long waitingSince = 0;
@@ -105,12 +104,24 @@ public abstract class TeamArena extends Game
 			if(instance.getPlayers().size() >= minPlayersRequired) {
 				//announce Game starting in:
 				// and play sound
-				sendCountdown();
+				sendCountdown(false);
+				if(waitingSince + preTeamsTime == gameTick) {
+					//set teams here
+					
+					teamsDecided = true;
+				}
 			}
 			else {
 				waitingSince = gameTick;
 			}
 		}
+	}
+	
+	public void setupTeams() {
+		Player[] players = instance.getPlayers().toArray(new Player[0]);
+		//shuffle order of teams first so certain teams don't always get the odd player(s)
+		TeamArenaTeam[] teamArray = Arrays.copyOf(teams, teams.length);
+		MathUtils.shuffleArray(teamArray);
 	}
 	
 	@Override
@@ -207,18 +218,26 @@ public abstract class TeamArena extends Game
 		}
 	}
 	
-	public void sendCountdown() {
+	public void sendCountdown(boolean force) {
+		//time so far in ticks
 		long secondsLeft = gameTick - waitingSince;
-		if(secondsLeft % 20 == 0)
+		
+		if(secondsLeft % 20 == 0 || force)
 		{
 			secondsLeft = ((waitingSince + totalWaitingTime) / 20) - secondsLeft / 20;
 			//is a multiple of 30, is 15, is between 10 and 1 inclusive, AND is not 0
-			if((secondsLeft % 30 == 0 || secondsLeft == 15 || secondsLeft == 10 || (secondsLeft <= 5 && secondsLeft >= 1)) && secondsLeft != 0)
+			if((secondsLeft % 30 == 0 || secondsLeft == 15 || secondsLeft == 10 ||
+					(secondsLeft <= 5 && secondsLeft >= 1)) && secondsLeft != 0)
 			{
 				for (Player p : instance.getPlayers())
 				{
+					String s;
+					if(gameState == GameState.PREGAME)
+						s = "Game starting in ";
+					else
+						s = "Teams will be chosen in ";
 					SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
-					p.sendMessage(Component.text("Game starting in " + secondsLeft + 's').color(NamedTextColor.RED));
+					p.sendMessage(Component.text(s + secondsLeft + 's').color(NamedTextColor.RED));
 					p.sendPacket(packet);
 				}
 			}
