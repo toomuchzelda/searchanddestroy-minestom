@@ -7,34 +7,22 @@ import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.GameState;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.KitNone;
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
-import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.format.TextDecorationAndState;
-import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
-import net.minestom.server.event.GlobalEventHandler;
-import net.minestom.server.event.instance.AddEntityToInstanceEvent;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.network.packet.server.play.ParticlePacket;
 import net.minestom.server.network.packet.server.play.SoundEffectPacket;
-import net.minestom.server.particle.Particle;
-import net.minestom.server.particle.ParticleCreator;
 import net.minestom.server.sound.SoundEvent;
-import org.jetbrains.annotations.NotNull;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.sql.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -43,12 +31,14 @@ public abstract class TeamArena extends Game
 {
 	protected final String mapPath = "Maps/TeamArena";
 	protected TeamArenaTeam[] teams;
+	protected boolean teamsDecided = false;
+	
 	protected ConcurrentLinkedQueue<CustomPlayer> joiningQueue = new ConcurrentLinkedQueue<>();
+	protected ConcurrentLinkedQueue<CustomPlayer> leavingQueue = new ConcurrentLinkedQueue<>();
 	
 	private Kit[] kits;
 	private ConcurrentHashMap<UUID, Kit> chosenKits = new ConcurrentHashMap<>();
 	protected ItemStack kitMenuItem;
-	protected boolean teamsDecided = false;
 	
 	//ticks of wait time before teams are decided
 	protected static final int preTeamsTime = 25 * 20;
@@ -59,7 +49,9 @@ public abstract class TeamArena extends Game
 	protected static final int totalWaitingTime = preTeamsTime + preGameStartingTime + gameStartingTime;
 	
 	protected static final int minPlayersRequired = 1;
-	protected long waitingSince = 0;
+	protected long waitingSince;
+	
+	protected TeamsPacketsManager teamsPacketsManager;
 	
 	public TeamArena(InstanceContainer instance, String name)
 	{
@@ -71,6 +63,9 @@ public abstract class TeamArena extends Game
 						.decoration(TextDecoration.ITALIC, false)).build();
 	
 		kits = new Kit[]{new KitNone()};
+		
+		this.teamsPacketsManager = new TeamsPacketsManager(this);
+		waitingSince = 0;
 	}
 	
 	
@@ -89,16 +84,23 @@ public abstract class TeamArena extends Game
 			}
 		}*/
 		
+		while(!leavingQueue.isEmpty()) {
+			CustomPlayer player = leavingQueue.remove();
+			//sync cleanup tasks..
+		}
+		
 		//process players that just joined
 		while(!joiningQueue.isEmpty()) {
 			CustomPlayer player = joiningQueue.remove();
 			Main.getLogger().info("Processing queue " + player.getUsername());
 			giveLobbyItems(player);
 			player.refreshCommands();
+			teamsPacketsManager.sendCreatePackets(player);
+			//if teams decided put them on a team
 		}
 		
 		//tick for each gamestate
-		if(gameState == GameState.PREGAME)
+		if(gameState.isPreGame())
 		{
 			//if countdown is ticking, do announcements
 			if(instance.getPlayers().size() >= minPlayersRequired) {
@@ -107,21 +109,57 @@ public abstract class TeamArena extends Game
 				sendCountdown(false);
 				if(waitingSince + preTeamsTime == gameTick) {
 					//set teams here
-					
+					setupTeams();
 					teamsDecided = true;
+					gameState = GameState.TEAMS_CHOSEN;
+					
+					for (Player p : instance.getPlayers())
+					{
+						//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
+						p.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
+						Main.getLogger().info("Decided Teams");
+						//p.sendPacket(packet);
+					}
+					
+					sendCountdown(true);
 				}
 			}
 			else {
 				waitingSince = gameTick;
+				gameState = GameState.PREGAME;
+				if(teamsDecided) {
+					//send remove players for all teams packets
+				}
+				teamsDecided = false;
 			}
 		}
 	}
 	
 	public void setupTeams() {
-		Player[] players = instance.getPlayers().toArray(new Player[0]);
 		//shuffle order of teams first so certain teams don't always get the odd player(s)
 		TeamArenaTeam[] teamArray = Arrays.copyOf(teams, teams.length);
 		MathUtils.shuffleArray(teamArray);
+		Player[] players = instance.getPlayers().toArray(new Player[0]);
+		if(players.length > 1)
+			MathUtils.shuffleArray(players);
+		
+		int offset = 0;
+		for(TeamArenaTeam team : teamArray)
+		{
+			LinkedList<Player> playersOnThisTeam = new LinkedList<>();
+			for(int i = offset; i < players.length; i = i + teamArray.length) {
+				playersOnThisTeam.add(players[i]);
+			}
+			offset++;
+			team.addMembers(playersOnThisTeam.toArray(new Player[0]));
+		}
+	}
+	
+	public void cleanUpPlayer(CustomPlayer player) {
+		teamsPacketsManager.sendDestroyPackets(player);
+		
+		//for sync-required tasks
+		leavingQueue.add(player);
 	}
 	
 	@Override
@@ -131,6 +169,10 @@ public abstract class TeamArena extends Game
 	
 	public void queueJoiningPlayer(CustomPlayer player) {
 		joiningQueue.add(player);
+	}
+	
+	public void queueLeavingPlayer(CustomPlayer player) {
+		leavingQueue.add(player);
 	}
 	
 	public void giveLobbyItems(CustomPlayer player) {
@@ -161,6 +203,10 @@ public abstract class TeamArena extends Game
 	
 	public Kit[] getKits() {
 		return kits;
+	}
+	
+	public TeamArenaTeam[] getTeams() {
+		return teams;
 	}
 	
 	@Override
@@ -194,7 +240,7 @@ public abstract class TeamArena extends Game
 				ArrayList<String> spawnsList = spawnsYaml.get("Spawns");
 				
 				TeamColours teamColour = TeamColours.valueOf(teamName);
-				TeamArenaTeam teamArenaTeam = new TeamArenaTeam(teamColour);
+				TeamArenaTeam teamArenaTeam = new TeamArenaTeam(teamColour, this);
 				Pos[] positionArray = new Pos[spawnsList.size()];
 				
 				int index = 0;
@@ -226,16 +272,17 @@ public abstract class TeamArena extends Game
 		{
 			secondsLeft = ((waitingSince + totalWaitingTime) / 20) - secondsLeft / 20;
 			//is a multiple of 30, is 15, is between 10 and 1 inclusive, AND is not 0
-			if((secondsLeft % 30 == 0 || secondsLeft == 15 || secondsLeft == 10 ||
-					(secondsLeft <= 5 && secondsLeft >= 1)) && secondsLeft != 0)
+			// OR is just forced
+			if(((secondsLeft % 30 == 0 || secondsLeft == 15 || secondsLeft == 10 ||
+					(secondsLeft <= 5 && secondsLeft >= 1)) && secondsLeft != 0) || force)
 			{
 				for (Player p : instance.getPlayers())
 				{
 					String s;
 					if(gameState == GameState.PREGAME)
-						s = "Game starting in ";
-					else
 						s = "Teams will be chosen in ";
+					else
+						s = "Game starting in ";
 					SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
 					p.sendMessage(Component.text(s + secondsLeft + 's').color(NamedTextColor.RED));
 					p.sendPacket(packet);

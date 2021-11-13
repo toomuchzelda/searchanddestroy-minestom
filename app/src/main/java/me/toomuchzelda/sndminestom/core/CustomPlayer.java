@@ -3,7 +3,6 @@ package me.toomuchzelda.sndminestom.core;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.TeamArenaTeam;
-import me.toomuchzelda.sndminestom.game.teamarena.TeamColours;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.player.PlayerConnection;
@@ -15,9 +14,10 @@ public class CustomPlayer extends Player
 {
 	//team they're on if any
 	private TeamArenaTeam team;
+	//Kit, if any
+	private Kit kit;
 	private Rank rank;
 	private Game game;
-	private Kit kit;
 	
 	public CustomPlayer(@NotNull UUID uuid, @NotNull String username, @NotNull PlayerConnection playerConnection)
 	{
@@ -48,5 +48,13 @@ public class CustomPlayer extends Player
 	
 	public Game getGame() {
 		return this.game;
+	}
+	
+	public Kit getKit() {
+		return kit;
+	}
+	
+	public void setKit(Kit kit) {
+		this.kit = kit;
 	}
 }

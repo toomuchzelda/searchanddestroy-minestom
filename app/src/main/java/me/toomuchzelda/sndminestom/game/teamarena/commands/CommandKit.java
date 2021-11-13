@@ -2,12 +2,14 @@ package me.toomuchzelda.sndminestom.game.teamarena.commands;
 
 import me.toomuchzelda.sndminestom.Main;
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
+import me.toomuchzelda.sndminestom.core.MathUtils;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.TeamArena;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.ArgumentType;

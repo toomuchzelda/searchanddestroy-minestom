@@ -55,4 +55,8 @@ public abstract class Game
 	public GameState getGameState() {
 		return gameState;
 	}
+	
+	public InstanceContainer getInstance() {
+		return instance;
+	}
 }

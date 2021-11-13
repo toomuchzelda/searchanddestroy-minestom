@@ -45,7 +45,7 @@ public class CommandStop extends Command
 						Component.text("stop? ").color(TextColor.color(255, 0, 0)).append(
 								Component.text("GO! ").color(TextColor.color(0, 255, 0)).append(
 										Component.text("I say ").color(TextColor.color(255, 255, 255)).append(
-												Component.text("GOOOO!!!!!!").color(TextColor.color(0, 255, 0))
+												Component.text("GO!!").color(TextColor.color(0, 255, 0))
 										)
 								)
 						))

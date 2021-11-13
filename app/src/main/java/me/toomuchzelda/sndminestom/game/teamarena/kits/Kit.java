@@ -37,7 +37,7 @@ public abstract class Kit
 		this.items = items;
 	}
 	
-	public void setAbilities(Ability[] abilities) {
+	public void setAbilities(Ability... abilities) {
 		this.abilities = abilities;
 	}
 	

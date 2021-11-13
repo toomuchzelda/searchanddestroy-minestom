@@ -19,6 +19,7 @@ import me.toomuchzelda.sndminestom.listeners.EventListeners;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.event.instance.InstanceTickEvent;
 import net.minestom.server.instance.*;
@@ -74,17 +75,14 @@ public class Main {
 		
 		globalEventHandler.addListener(PlayerSkinInitEvent.class, event -> {
 			//PlayerSkin skin = PlayerSkin.fromUuid(event.getPlayer().getUuid().toString());
-			PlayerSkin skin = PlayerSkin.fromUsername("toomuchzelda");
+			PlayerSkin skin = PlayerSkin.fromUsername(event.getPlayer().getUsername());
 			event.setSkin(skin);
 		});
 		
-		//globalEventHandler.addListener(PlayerSpawnEvent.class, event -> {
-			//event.getPlayer().setGameMode(GameMode.CREATIVE);
-			/*event.getPlayer().sendMessage(Component.text("asdf"));
-			event.getPlayer().sendMessage(Component.text("DARK_RED").color(NamedTextColor.DARK_RED));
-			event.getPlayer().sendMessage(Component.text("RED").color(NamedTextColor.RED));
-			event.getPlayer().sendMessage(Component.text("DARK_BLUE").color(NamedTextColor.DARK_BLUE));*/
-		//});
+		globalEventHandler.addListener(PlayerSpawnEvent.class, event -> {
+			//TextColor color = TextColor.color(MathUtils.randomMax(255), MathUtils.randomMax(255), MathUtils.randomMax(255));
+			//event.getPlayer().setDisplayName(Component.text(event.getPlayer().getUsername()).color(color));
+		});
 		
 		//Run the game ticks on every instance tick
 		globalEventHandler.addListener(InstanceTickEvent.class, instanceTickEvent -> {

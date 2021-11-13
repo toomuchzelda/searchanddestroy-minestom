@@ -48,10 +48,6 @@ public enum TeamColours
 		this.dyeColour = dyeColor;
 	}
 	
-	private static Color convert(NamedTextColor textColor) {
-		return new Color(textColor.red(), textColor.green(), textColor.blue());
-	}
-	
 	public String getName() {
 		return name;
 	}
@@ -76,7 +72,11 @@ public enum TeamColours
 		return dyeColour;
 	}
 	
-	public TextColor getTextColor() {
+	public TextColor getRGBTextColor() {
 		return TextColor.color(colour.asRGB());
+	}
+	
+	private static Color convert(NamedTextColor textColor) {
+		return new Color(textColor.red(), textColor.green(), textColor.blue());
 	}
 }

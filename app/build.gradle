@@ -25,7 +25,7 @@ repositories {
 dependencies {
     // Use JUnit test framework.
 
-	implementation 'com.github.Minestom:Minestom:c9f52397cb'
+	implementation 'com.github.Minestom:Minestom:48d8cbf10e'
     implementation 'org.yaml:snakeyaml:1.29'
 }
 
