@@ -2,6 +2,8 @@ package me.toomuchzelda.sndminestom.game.teamarena;
 
 import me.toomuchzelda.sndminestom.Main;
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Entity;
@@ -11,14 +13,16 @@ import net.minestom.server.scoreboard.Scoreboard;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TeamArenaTeam
 {
 	private TeamColours teamColour;
 	private Pos[] spawns;
 	//only add to from this object's encapsulating TeamArena object's tick() method
-	private LinkedList<String> members = new LinkedList<>();
+	private Set<String> members = ConcurrentHashMap.newKeySet();
 	private TeamArena teamArena;
 	
 	public TeamArenaTeam(TeamColours teamColour, TeamArena game)
@@ -91,6 +95,23 @@ public class TeamArenaTeam
 		}
 	}
 	
+	public TeamsPacket createCreateTeamPacket() {
+		TeamsPacket packet = new TeamsPacket();
+		
+		packet.teamName = getTeamColour().getName();
+		packet.action = TeamsPacket.Action.CREATE_TEAM;
+		packet.teamDisplayName = Component.text(getTeamColour().getName())
+				.color(getTeamColour().getRGBTextColor());
+		packet.friendlyFlags = TeamsPacketsManager.friendlyFireAndInvisBits(true, true);
+		packet.nameTagVisibility = TeamsPacket.NameTagVisibility.NEVER;
+		packet.collisionRule = TeamsPacket.CollisionRule.NEVER;
+		packet.teamColor = NamedTextColor.nearestTo(getTeamColour().getRGBTextColor());
+		packet.teamPrefix = Component.text(getTeamColour().getName()).color(getTeamColour().getRGBTextColor());
+		packet.entities = getTeamsPacketEntities();
+		
+		return packet;
+	}
+	
 	public TeamsPacket createRemoveTeamPacket() {
 		final TeamsPacket removePacket = new TeamsPacket();
 		removePacket.teamName = teamColour.getName();
@@ -98,7 +119,7 @@ public class TeamArenaTeam
 		return removePacket;
 	}
 	
-	public LinkedList<String> getMembers() {
+	public Set<String> getMembers() {
 		return members;
 	}
 	

@@ -1,15 +1,9 @@
 package me.toomuchzelda.sndminestom.game.teamarena;
 
-import me.toomuchzelda.sndminestom.core.CustomPlayer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.minestom.server.MinecraftServer;
-import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.server.play.TeamsPacket;
-
-import java.util.LinkedList;
-import java.util.UUID;
 
 public class TeamsPacketsManager
 {
@@ -57,19 +51,7 @@ public class TeamsPacketsManager
 		
 		TeamArenaTeam[] team = game.getTeams();
 		for(int i = 0; i < team.length; i++) {
-			TeamsPacket packet = new TeamsPacket();
-			
-			packet.teamName = team[i].getTeamColour().getName();
-			packet.action = TeamsPacket.Action.CREATE_TEAM;
-			packet.teamDisplayName = Component.text(team[i].getTeamColour().getName())
-					.color(team[i].getTeamColour().getRGBTextColor());
-			packet.friendlyFlags = friendlyFireAndInvisBits(true, true);
-			packet.nameTagVisibility = TeamsPacket.NameTagVisibility.NEVER;
-			packet.collisionRule = TeamsPacket.CollisionRule.NEVER;
-			packet.teamColor = NamedTextColor.nearestTo(team[i].getTeamColour().getRGBTextColor());
-			packet.teamPrefix = Component.text(team[i].getTeamColour().getName()).color(team[i].getTeamColour().getRGBTextColor());
-			packet.entities = team[i].getTeamsPacketEntities();
-		
+			TeamsPacket packet = team[i].createCreateTeamPacket();
 			teams[i] = packet;
 		}
 		

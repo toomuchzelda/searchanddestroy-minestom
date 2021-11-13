@@ -52,6 +52,7 @@ public abstract class TeamArena extends Game
 	protected long waitingSince;
 	
 	protected TeamsPacketsManager teamsPacketsManager;
+	protected TeamArenaOptions teamArenaOptions;
 	
 	public TeamArena(InstanceContainer instance, String name)
 	{
@@ -65,6 +66,7 @@ public abstract class TeamArena extends Game
 		kits = new Kit[]{new KitNone()};
 		
 		this.teamsPacketsManager = new TeamsPacketsManager(this);
+		teamArenaOptions = new TeamArenaOptions();
 		waitingSince = 0;
 	}
 	
@@ -96,7 +98,10 @@ public abstract class TeamArena extends Game
 			giveLobbyItems(player);
 			player.refreshCommands();
 			teamsPacketsManager.sendCreatePackets(player);
-			//if teams decided put them on a team
+			if((gameState.isPreGame() && teamsDecided) ||
+					(((boolean) teamArenaOptions.RESPAWNING.value) && (boolean) teamArenaOptions.MID_GAME_JOINING.value)) {
+				//put them on team with lowest players, or if already balanced, on lowest scoring teams
+			}
 		}
 		
 		//tick for each gamestate
