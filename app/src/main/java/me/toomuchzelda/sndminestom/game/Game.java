@@ -8,6 +8,8 @@ import net.minestom.server.instance.AnvilLoader;
 import net.minestom.server.instance.InstanceContainer;
 
 import java.io.File;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class Game
 {
@@ -17,6 +19,7 @@ public abstract class Game
 	protected GameState gameState;
 	protected GameType nextGame = GameType.KOTH;
 	private String lobbyName;
+	protected Set<CustomPlayer> players;
 	
 	public Game(InstanceContainer instance, String name) {
 		this.instance = instance;
@@ -36,6 +39,10 @@ public abstract class Game
 		anvilLoader = new AnvilLoader(chosenMapName);
 		instance.setChunkLoader(anvilLoader);
 		parseConfig(chosenMapName + "/config.yml");
+		
+		//maintain own set of players, to avoid problems when using instance.getPlayers().
+		// a player may not have been initialized within the game yet.
+		players = ConcurrentHashMap.newKeySet();
 		
 		gameTick = 0;
 		gameState = GameState.PREGAME;
@@ -58,5 +65,9 @@ public abstract class Game
 	
 	public InstanceContainer getInstance() {
 		return instance;
+	}
+	
+	public Set<CustomPlayer> getPlayers() {
+		return players;
 	}
 }

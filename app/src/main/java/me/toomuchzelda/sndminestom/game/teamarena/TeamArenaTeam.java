@@ -23,6 +23,9 @@ public class TeamArenaTeam
 	private Pos[] spawns;
 	//only add to from this object's encapsulating TeamArena object's tick() method
 	private Set<String> members = ConcurrentHashMap.newKeySet();
+	private Set<Entity> entityMembers = ConcurrentHashMap.newKeySet();
+	
+	//reference to game instance
 	private TeamArena teamArena;
 	
 	public TeamArenaTeam(TeamColours teamColour, TeamArena game)
@@ -44,20 +47,27 @@ public class TeamArenaTeam
 		return teamColour;
 	}
 	
-	//Things like making sure one entity isnt on two teams is done in TeamArena class
 	public void addMembers(Entity... entities) {
 		String[] names = new String[entities.length];
 		for(int i = 0; i < entities.length; i++) {
 			Entity entity = entities[i];
 			
-			if (entity instanceof Player) {
-				members.add(((Player) entity).getUsername());
-				names[i] = ((Player) entity).getUsername();
+			if (entity instanceof CustomPlayer) {
+				CustomPlayer cp = (CustomPlayer) entity;
+				members.add(cp.getUsername());
+				names[i] = cp.getUsername();
+				//if they're already on a team
+				// remove them from that team and update the reference in their own class
+				if(cp.getTeamArenaTeam() != null) {
+					cp.getTeamArenaTeam().removeMembers(cp);
+					cp.setTeamArenaTeam(this);
+				}
 			}
 			else {
 				members.add(entity.getUuid().toString());
 				names[i] = entity.getUuid().toString();
 			}
+			entityMembers.add(entity);
 		}
 		
 		final TeamsPacket addPacket = new TeamsPacket();
@@ -65,7 +75,7 @@ public class TeamArenaTeam
 		addPacket.action = TeamsPacket.Action.ADD_PLAYERS_TEAM;
 		addPacket.entities = names;
 		
-		for(Player p : teamArena.getInstance().getPlayers()) {
+		for(Player p : teamArena.getPlayers()) {
 			p.sendPacket(addPacket);
 		}
 	}
@@ -75,14 +85,16 @@ public class TeamArenaTeam
 		for(int i = 0; i < entities.length; i++) {
 			Entity entity = entities[i];
 			
-			if (entity instanceof Player) {
-				members.remove(((Player) entity).getUsername());
-				names[i] = ((Player) entity).getUsername();
+			if (entity instanceof CustomPlayer cp) {
+				members.remove(cp.getUsername());
+				names[i] = cp.getUsername();
+				cp.setTeamArenaTeam(null);
 			}
 			else {
 				members.remove(entity.getUuid().toString());
 				names[i] = entity.getUuid().toString();
 			}
+			entityMembers.remove(entity);
 		}
 		
 		final TeamsPacket removePacket = new TeamsPacket();
@@ -90,7 +102,27 @@ public class TeamArenaTeam
 		removePacket.action = TeamsPacket.Action.REMOVE_PLAYERS_TEAM;
 		removePacket.entities = names;
 		
-		for(Player p : teamArena.getInstance().getPlayers()) {
+		for(Player p : teamArena.getPlayers()) {
+			p.sendPacket(removePacket);
+		}
+	}
+	
+	public void removeAllMembers() {
+		String[] names = members.toArray(new String[0]);
+		members.clear();
+		for(Entity e : entityMembers) {
+			if(e instanceof CustomPlayer cp) {
+				cp.setTeamArenaTeam(null);
+			}
+		}
+		entityMembers.clear();
+		
+		final TeamsPacket removePacket = new TeamsPacket();
+		removePacket.teamName = getTeamColour().getName();
+		removePacket.action = TeamsPacket.Action.REMOVE_PLAYERS_TEAM;
+		removePacket.entities = names;
+		
+		for(Player p : teamArena.getPlayers()) {
 			p.sendPacket(removePacket);
 		}
 	}
@@ -121,6 +153,10 @@ public class TeamArenaTeam
 	
 	public Set<String> getMembers() {
 		return members;
+	}
+	
+	public Set<Entity> getEntityMembers() {
+		return entityMembers;
 	}
 	
 	public String[] getTeamsPacketEntities() {

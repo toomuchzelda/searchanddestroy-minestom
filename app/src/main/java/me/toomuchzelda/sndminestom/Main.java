@@ -67,7 +67,7 @@ public class Main {
 		globalEventHandler.addListener(PlayerLoginEvent.class, event -> {
 			final Player player = event.getPlayer();
 			event.setSpawningInstance(instance);
-			player.setRespawnPoint(new Pos(0, 100, 0));
+			//player.setRespawnPoint(new Pos(0, 100, 0));
 			if(player.getName().equals(Component.text("toomuchzelda"))) {
 				((CustomPlayer) player).setRank(Rank.OPERATOR);
 			}
@@ -86,14 +86,7 @@ public class Main {
 		
 		//Run the game ticks on every instance tick
 		globalEventHandler.addListener(InstanceTickEvent.class, instanceTickEvent -> {
-			
-			
 			gameInstances.get(instanceTickEvent.getInstance()).tick();
-			/*for(Player p : instanceTickEvent.getInstance().getPlayers()) {
-				//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
-				p.sendMessage(Component.text("Tick duration ms: " + (instanceTickEvent.getDuration())).color(NamedTextColor.RED));
-				//p.sendPacket(packet);
-			}*/
 		});
 		
 		registerCommands();

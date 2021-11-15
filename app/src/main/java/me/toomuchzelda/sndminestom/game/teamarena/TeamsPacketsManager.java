@@ -27,7 +27,7 @@ public class TeamsPacketsManager
 			packet.teamColor = NamedTextColor.nearestTo(team.getTeamColour().getRGBTextColor());
 			packet.teamPrefix = Component.text(team.getTeamColour().getName()).color(team.getTeamColour().getRGBTextColor());
 			
-			for(Player p : game.getInstance().getPlayers()) {
+			for(Player p : game.getPlayers()) {
 				p.sendPacket(packet);
 			}
 		}

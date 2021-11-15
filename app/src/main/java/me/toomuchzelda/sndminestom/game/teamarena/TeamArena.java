@@ -10,13 +10,16 @@ import me.toomuchzelda.sndminestom.game.teamarena.kits.KitNone;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.sound.SoundEvent;
 import org.yaml.snakeyaml.Yaml;
@@ -43,7 +46,7 @@ public abstract class TeamArena extends Game
 	//ticks of wait time before teams are decided
 	protected static final int preTeamsTime = 25 * 20;
 	//ticks of wait time after teams chosen, before game starting phase
-	protected static final int preGameStartingTime = 25 * 20;
+	protected static final int preGameStartingTime = 30 * 20;
 	//ticks of game starting time
 	protected static final int gameStartingTime = 10 * 20;
 	protected static final int totalWaitingTime = preTeamsTime + preGameStartingTime + gameStartingTime;
@@ -75,32 +78,34 @@ public abstract class TeamArena extends Game
 	public void tick() {
 		super.tick();
 		
-		/*for(TeamArenaTeam team : teams)
-		{
-			//instance.sendMessage(Component.text(team.getTeamColour().getName()).color(team.getTeamColour().getTextColor()));
-			for(Pos spawn : team.getSpawns()) {
-				ParticlePacket packet = ParticleCreator.createParticlePacket(Particle.CRIT,
-						spawn.x(), spawn.y() + 0.5, spawn.z(), 0, 0, 0,1);
-				
-				instance.sendGroupedPacket(packet);
-			}
-		}*/
-		
 		while(!leavingQueue.isEmpty()) {
 			CustomPlayer player = leavingQueue.remove();
+			players.remove(player);
 			//sync cleanup tasks..
 		}
 		
 		//process players that just joined
 		while(!joiningQueue.isEmpty()) {
 			CustomPlayer player = joiningQueue.remove();
-			Main.getLogger().info("Processing queue " + player.getUsername());
+			//Main.getLogger().info("Processing queue " + player.getUsername());
+			players.add(player);
+			
 			giveLobbyItems(player);
 			player.refreshCommands();
 			teamsPacketsManager.sendCreatePackets(player);
 			if((gameState.isPreGame() && teamsDecided) ||
-					(((boolean) teamArenaOptions.RESPAWNING.value) && (boolean) teamArenaOptions.MID_GAME_JOINING.value)) {
+					(teamArenaOptions.RESPAWNING.value && teamArenaOptions.MID_GAME_JOINING.value)) {
+				
 				//put them on team with lowest players, or if already balanced, on lowest scoring teams
+				int lowest = Integer.MAX_VALUE;
+				TeamArenaTeam lowestTeam = teams[0];
+				for(TeamArenaTeam team : teams) {
+					if(team.getEntityMembers().size() < lowest) {
+						lowest = team.getEntityMembers().size();
+						lowestTeam = team;
+					}
+				}
+				lowestTeam.addMembers(player);
 			}
 		}
 		
@@ -108,7 +113,7 @@ public abstract class TeamArena extends Game
 		if(gameState.isPreGame())
 		{
 			//if countdown is ticking, do announcements
-			if(instance.getPlayers().size() >= minPlayersRequired) {
+			if(players.size() >= minPlayersRequired) {
 				//announce Game starting in:
 				// and play sound
 				sendCountdown(false);
@@ -120,20 +125,52 @@ public abstract class TeamArena extends Game
 					
 					for (Player p : instance.getPlayers())
 					{
+						CustomPlayer cp = (CustomPlayer) p;
 						//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
-						p.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
+						cp.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
+						String name = cp.getTeamArenaTeam().getTeamColour().getName();
+						TextColor colour = cp.getTeamArenaTeam().getTeamColour().getRGBTextColor();
+						cp.sendMessage(Component.text("You are on " + name).color(colour));
+						SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT,
+								SoundEvent.BLOCK_NOTE_BLOCK_BELL, cp.getPosition(), 1f, 0.5f);
+						cp.sendPacket(packet);
 						Main.getLogger().info("Decided Teams");
 						//p.sendPacket(packet);
 					}
 					
 					sendCountdown(true);
 				}
+				//Game starting; teleport everyone to spawns and freeze them
+				else if(waitingSince + preTeamsTime + preGameStartingTime == gameTick) {
+					//teleport players to team spawns
+					int i = 0;
+					for(TeamArenaTeam team : teams) {
+						for(Entity e : team.getEntityMembers()) {
+							Pos[] spawns = team.getSpawns();
+							e.teleport(spawns[i % spawns.length]);
+							i++;
+						}
+						i = 0;
+					}
+					
+					//EventListeners.java should stop them from moving
+					gameState = GameState.GAME_STARTING;
+				}
+				//start game
+				else if(waitingSince + totalWaitingTime == gameTick)
+				{
+					gameState = GameState.LIVE;
+					
+				}
 			}
 			else {
 				waitingSince = gameTick;
 				gameState = GameState.PREGAME;
 				if(teamsDecided) {
-					//send remove players for all teams packets
+					//remove players from all teams (and send packets)
+					for(TeamArenaTeam team : teams) {
+						team.removeAllMembers();
+					}
 				}
 				teamsDecided = false;
 			}
@@ -144,16 +181,16 @@ public abstract class TeamArena extends Game
 		//shuffle order of teams first so certain teams don't always get the odd player(s)
 		TeamArenaTeam[] teamArray = Arrays.copyOf(teams, teams.length);
 		MathUtils.shuffleArray(teamArray);
-		Player[] players = instance.getPlayers().toArray(new Player[0]);
-		if(players.length > 1)
-			MathUtils.shuffleArray(players);
+		Player[] shuffledPlayers = players.toArray(new Player[0]);
+		if(shuffledPlayers.length > 1)
+			MathUtils.shuffleArray(shuffledPlayers);
 		
 		int offset = 0;
 		for(TeamArenaTeam team : teamArray)
 		{
 			LinkedList<Player> playersOnThisTeam = new LinkedList<>();
-			for(int i = offset; i < players.length; i = i + teamArray.length) {
-				playersOnThisTeam.add(players[i]);
+			for(int i = offset; i < shuffledPlayers.length; i = i + teamArray.length) {
+				playersOnThisTeam.add(shuffledPlayers[i]);
 			}
 			offset++;
 			team.addMembers(playersOnThisTeam.toArray(new Player[0]));
@@ -270,18 +307,23 @@ public abstract class TeamArena extends Game
 	}
 	
 	public void sendCountdown(boolean force) {
-		//time so far in ticks
-		long secondsLeft = gameTick - waitingSince;
-		
-		if(secondsLeft % 20 == 0 || force)
+		if((gameTick - waitingSince) % 20 == 0 || force)
 		{
-			secondsLeft = ((waitingSince + totalWaitingTime) / 20) - secondsLeft / 20;
-			//is a multiple of 30, is 15, is between 10 and 1 inclusive, AND is not 0
+			long timeLeft;
+			//how long until teams are chosen
+			if(gameState == GameState.PREGAME) {
+				timeLeft = (waitingSince + preTeamsTime) - gameTick;
+			}
+			else {
+				timeLeft = (waitingSince + totalWaitingTime) - gameTick;
+			}
+			timeLeft /= 20;
+			//is a multiple of 30, is 15, is between 10 and 1 inclusive , AND is not 0
 			// OR is just forced
-			if(((secondsLeft % 30 == 0 || secondsLeft == 15 || secondsLeft == 10 ||
-					(secondsLeft <= 5 && secondsLeft >= 1)) && secondsLeft != 0) || force)
+			if(((timeLeft % 30 == 0 || timeLeft == 15 || timeLeft == 10 ||
+					(timeLeft <= 5 && timeLeft >= 1 && gameState == GameState.GAME_STARTING)) && timeLeft != 0) || force)
 			{
-				for (Player p : instance.getPlayers())
+				for (Player p : players)
 				{
 					String s;
 					if(gameState == GameState.PREGAME)
@@ -289,7 +331,7 @@ public abstract class TeamArena extends Game
 					else
 						s = "Game starting in ";
 					SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
-					p.sendMessage(Component.text(s + secondsLeft + 's').color(NamedTextColor.RED));
+					p.sendMessage(Component.text(s + timeLeft + 's').color(NamedTextColor.RED));
 					p.sendPacket(packet);
 				}
 			}
