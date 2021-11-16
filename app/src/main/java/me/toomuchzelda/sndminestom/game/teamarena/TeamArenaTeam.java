@@ -25,6 +25,10 @@ public class TeamArenaTeam
 	private Set<String> members = ConcurrentHashMap.newKeySet();
 	private Set<Entity> entityMembers = ConcurrentHashMap.newKeySet();
 	
+	//in the rare case a player joins during GAME_STARTING, need to find an unused spawn position
+	// to teleport to
+	public boolean[] spawnsTaken;
+	
 	//reference to game instance
 	private TeamArena teamArena;
 	
@@ -41,6 +45,7 @@ public class TeamArenaTeam
 	
 	public void setSpawns(Pos[] array) {
 		this.spawns = array;
+		this.spawnsTaken = new boolean[spawns.length];
 	}
 	
 	public TeamColours getTeamColour() {

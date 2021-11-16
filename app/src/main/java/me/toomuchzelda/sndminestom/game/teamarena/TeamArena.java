@@ -1,6 +1,7 @@
 package me.toomuchzelda.sndminestom.game.teamarena;
 
 import me.toomuchzelda.sndminestom.Main;
+import me.toomuchzelda.sndminestom.core.BlockStuff;
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
 import me.toomuchzelda.sndminestom.core.MathUtils;
 import me.toomuchzelda.sndminestom.game.Game;
@@ -12,16 +13,21 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.minestom.server.collision.BoundingBox;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.InstanceContainer;
+import net.minestom.server.instance.WorldBorder;
+import net.minestom.server.instance.block.Block;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.utils.block.BlockUtils;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
@@ -34,7 +40,6 @@ public abstract class TeamArena extends Game
 {
 	protected final String mapPath = "Maps/TeamArena";
 	protected TeamArenaTeam[] teams;
-	protected boolean teamsDecided = false;
 	
 	protected ConcurrentLinkedQueue<CustomPlayer> joiningQueue = new ConcurrentLinkedQueue<>();
 	protected ConcurrentLinkedQueue<CustomPlayer> leavingQueue = new ConcurrentLinkedQueue<>();
@@ -53,9 +58,13 @@ public abstract class TeamArena extends Game
 	
 	protected static final int minPlayersRequired = 1;
 	protected long waitingSince;
+	protected boolean teamsDecided = false;
 	
 	protected TeamsPacketsManager teamsPacketsManager;
 	protected TeamArenaOptions teamArenaOptions;
+	
+	protected MapBorder border;
+	protected Pos spawnPos;
 	
 	public TeamArena(InstanceContainer instance, String name)
 	{
@@ -95,7 +104,6 @@ public abstract class TeamArena extends Game
 			teamsPacketsManager.sendCreatePackets(player);
 			if((gameState.isPreGame() && teamsDecided) ||
 					(teamArenaOptions.RESPAWNING.value && teamArenaOptions.MID_GAME_JOINING.value)) {
-				
 				//put them on team with lowest players, or if already balanced, on lowest scoring teams
 				int lowest = Integer.MAX_VALUE;
 				TeamArenaTeam lowestTeam = teams[0];
@@ -107,6 +115,8 @@ public abstract class TeamArena extends Game
 				}
 				lowestTeam.addMembers(player);
 			}
+			player.setRespawnPoint(spawnPos);
+			player.teleport(spawnPos);
 		}
 		
 		//tick for each gamestate
@@ -143,14 +153,14 @@ public abstract class TeamArena extends Game
 				//Game starting; teleport everyone to spawns and freeze them
 				else if(waitingSince + preTeamsTime + preGameStartingTime == gameTick) {
 					//teleport players to team spawns
-					int i = 0;
 					for(TeamArenaTeam team : teams) {
+						int i = 0;
+						Pos[] spawns = team.getSpawns();
 						for(Entity e : team.getEntityMembers()) {
-							Pos[] spawns = team.getSpawns();
 							e.teleport(spawns[i % spawns.length]);
+							team.spawnsTaken[i] = true;
 							i++;
 						}
-						i = 0;
 					}
 					
 					//EventListeners.java should stop them from moving
@@ -251,6 +261,7 @@ public abstract class TeamArena extends Game
 		return teams;
 	}
 	
+	//This method assumes everything in config is set up correctly
 	@Override
 	public void parseConfig(String filename) {
 		Yaml yaml = new Yaml();
@@ -264,6 +275,7 @@ public abstract class TeamArena extends Game
 				System.out.println(iter.next().toString());
 			}
 			
+			//Create the teams
 			//Key = team e.g RED, BLUE. value = Map:
 			//		key = "Spawns" value: ArrayList<String>
 			Map<String, Map<String, ArrayList<String>>> teamsMap =
@@ -287,11 +299,8 @@ public abstract class TeamArena extends Game
 				
 				int index = 0;
 				for(String loc : spawnsList) {
-					String[] coords = loc.split(",");
-					double x = Double.parseDouble(coords[0]) + 0.5f;
-					double y = Double.parseDouble(coords[1]);
-					double z = Double.parseDouble(coords[2]) + 0.5f;
-					Pos pos = new Pos(x, y, z);
+					double[] coords = BlockStuff.parseCoords(loc, 0.5, 0, 0.5);
+					Pos pos = new Pos(coords[0], coords[1], coords[2]);
 					positionArray[index] = pos;
 					index++;
 				}
@@ -299,12 +308,33 @@ public abstract class TeamArena extends Game
 				teams[teamsArrIndex] = teamArenaTeam;
 				teamsArrIndex++;
 			}
+			
+			//Map border
+			// Only supports rectangular prism borders as of now
+			ArrayList<String> borders = (ArrayList<String>) map.get("Border");
+			double[] corner1 = BlockStuff.parseCoords(borders.get(0), 0, 0, 0);
+			double[] corner2 = BlockStuff.parseCoords(borders.get(1), 0, 0, 0);
+			border = new MapBorder(corner1, corner2);
+			Main.getLogger().info("MapBorder: " + border.toString());
+			
+			//calculate spawnpoint based on map border
+			Vec centre = border.getCentre();
+			/*Vec spawnpoint = BlockStuff.getFloor(centre, instance);
+			//if not safe to spawn just spawn them in the sky
+			if(spawnpoint == null) {
+				spawnpoint = new Vec(centre.x(), 255, centre.z());
+			}*/
+			centre = BlockStuff.getHighestBlock(centre,instance);
+			spawnPos = centre.asPosition().withYaw(90f).add(0, 1, 0);
+			Main.getLogger().info("spawnPos: " + spawnPos.toString());
 		}
 		catch(IOException e)
 		{
 			e.printStackTrace();
 		}
 	}
+	
+	
 	
 	public void sendCountdown(boolean force) {
 		if((gameTick - waitingSince) % 20 == 0 || force)

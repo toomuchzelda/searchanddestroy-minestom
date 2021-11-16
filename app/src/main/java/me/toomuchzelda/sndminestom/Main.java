@@ -67,7 +67,7 @@ public class Main {
 		globalEventHandler.addListener(PlayerLoginEvent.class, event -> {
 			final Player player = event.getPlayer();
 			event.setSpawningInstance(instance);
-			//player.setRespawnPoint(new Pos(0, 100, 0));
+			player.setRespawnPoint(new Pos(0, 100, 0));
 			if(player.getName().equals(Component.text("toomuchzelda"))) {
 				((CustomPlayer) player).setRank(Rank.OPERATOR);
 			}
