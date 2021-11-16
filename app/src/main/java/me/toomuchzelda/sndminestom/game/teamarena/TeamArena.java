@@ -13,21 +13,17 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.minestom.server.collision.BoundingBox;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.instance.InstanceContainer;
-import net.minestom.server.instance.WorldBorder;
-import net.minestom.server.instance.block.Block;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.network.packet.server.play.SoundEffectPacket;
 import net.minestom.server.sound.SoundEvent;
-import net.minestom.server.utils.block.BlockUtils;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
@@ -44,7 +40,7 @@ public abstract class TeamArena extends Game
 	protected ConcurrentLinkedQueue<CustomPlayer> joiningQueue = new ConcurrentLinkedQueue<>();
 	protected ConcurrentLinkedQueue<CustomPlayer> leavingQueue = new ConcurrentLinkedQueue<>();
 	
-	private Kit[] kits;
+	private final Kit[] kits;
 	private ConcurrentHashMap<UUID, Kit> chosenKits = new ConcurrentHashMap<>();
 	protected ItemStack kitMenuItem;
 	
@@ -74,7 +70,7 @@ public abstract class TeamArena extends Game
 		kitMenuItem = ItemStack.builder(Material.FEATHER).amount(1)
 				.displayName(Component.text("Select a kit").color(NamedTextColor.BLUE)
 						.decoration(TextDecoration.ITALIC, false)).build();
-	
+		
 		kits = new Kit[]{new KitNone()};
 		
 		this.teamsPacketsManager = new TeamsPacketsManager(this);
@@ -90,6 +86,7 @@ public abstract class TeamArena extends Game
 		while(!leavingQueue.isEmpty()) {
 			CustomPlayer player = leavingQueue.remove();
 			players.remove(player);
+			player.getTeamArenaTeam().removeMembers(player);
 			//sync cleanup tasks..
 		}
 		
@@ -102,21 +99,28 @@ public abstract class TeamArena extends Game
 			giveLobbyItems(player);
 			player.refreshCommands();
 			teamsPacketsManager.sendCreatePackets(player);
+			Pos toTeleport = spawnPos;
 			if((gameState.isPreGame() && teamsDecided) ||
 					(teamArenaOptions.RESPAWNING.value && teamArenaOptions.MID_GAME_JOINING.value)) {
 				//put them on team with lowest players, or if already balanced, on lowest scoring teams
-				int lowest = Integer.MAX_VALUE;
-				TeamArenaTeam lowestTeam = teams[0];
-				for(TeamArenaTeam team : teams) {
-					if(team.getEntityMembers().size() < lowest) {
-						lowest = team.getEntityMembers().size();
-						lowestTeam = team;
-					}
+				addToLowestTeam(player);
+				informOfTeam(player);
+				if(gameState == GameState.GAME_STARTING) {
+					TeamArenaTeam team = player.getTeamArenaTeam();
+					Pos[] spawns = team.getSpawns();
+					//just plop them in a random team spawn
+					toTeleport = spawns[team.spawnsIndex % spawns.length];
+					team.spawnsIndex++;
 				}
-				lowestTeam.addMembers(player);
 			}
+			//respawnpoint won't really be used, deaths will be handled custom-ly
 			player.setRespawnPoint(spawnPos);
-			player.teleport(spawnPos);
+			final Pos fPos = toTeleport;
+			//sigh
+			// scheduling this prevents some annoying weird desync bug as of 16/11/2021
+			MinecraftServer.getUpdateManager().addTickStartCallback(value -> {
+				player.teleport(fPos);
+			});
 		}
 		
 		//tick for each gamestate
@@ -138,12 +142,7 @@ public abstract class TeamArena extends Game
 						CustomPlayer cp = (CustomPlayer) p;
 						//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
 						cp.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
-						String name = cp.getTeamArenaTeam().getTeamColour().getName();
-						TextColor colour = cp.getTeamArenaTeam().getTeamColour().getRGBTextColor();
-						cp.sendMessage(Component.text("You are on " + name).color(colour));
-						SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT,
-								SoundEvent.BLOCK_NOTE_BLOCK_BELL, cp.getPosition(), 1f, 0.5f);
-						cp.sendPacket(packet);
+						informOfTeam(cp);
 						Main.getLogger().info("Decided Teams");
 						//p.sendPacket(packet);
 					}
@@ -158,7 +157,7 @@ public abstract class TeamArena extends Game
 						Pos[] spawns = team.getSpawns();
 						for(Entity e : team.getEntityMembers()) {
 							e.teleport(spawns[i % spawns.length]);
-							team.spawnsTaken[i] = true;
+							team.spawnsIndex++;
 							i++;
 						}
 					}
@@ -205,6 +204,58 @@ public abstract class TeamArena extends Game
 			offset++;
 			team.addMembers(playersOnThisTeam.toArray(new Player[0]));
 		}
+	}
+	
+	public void addToLowestTeam(CustomPlayer player) {
+		int remainder = players.size() % teams.length;
+		//see which team has the least players and put that player on that team
+		// if there's more than one with same amount of lowest players, or all teams have balanced players
+		// then we'll do something else
+		int lowest = Integer.MAX_VALUE;
+		TeamArenaTeam lowestTeam = teams[0];
+		for (TeamArenaTeam team : teams)
+		{
+			if (team.getEntityMembers().size() < lowest)
+			{
+				lowest = team.getEntityMembers().size();
+				lowestTeam = team;
+			}
+		}
+		
+		if(remainder == 1)
+			lowestTeam.addMembers(player);
+		else
+		{
+			//get all teams with that lowest player amount
+			LinkedList<TeamArenaTeam> lowestTeams = new LinkedList<>();
+			for(TeamArenaTeam team : teams) {
+				if(team.getEntityMembers().size() == lowest) {
+					lowestTeams.add(team);
+				}
+			}
+			
+			//shuffle them, and loop through and get the first one in the list that has the lowest score.
+			Collections.shuffle(lowestTeams);
+			int lowestScore = Integer.MAX_VALUE;
+			TeamArenaTeam finalLowestTeam = teams[0];
+			for(TeamArenaTeam team : lowestTeams) {
+				if(team.score < lowestScore) {
+					lowestScore = team.score;
+					finalLowestTeam = team;
+				}
+			}
+			finalLowestTeam.addMembers(player);
+		}
+	}
+	
+	public void informOfTeam(CustomPlayer cp) {
+		String name = cp.getTeamArenaTeam().getTeamColour().getName();
+		TextColor colour = cp.getTeamArenaTeam().getTeamColour().getRGBTextColor();
+		cp.sendMessage(Component.text("You are on ").color(NamedTextColor.GOLD).append(Component.text(name)
+				.color(colour)));
+		SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.BLOCK_NOTE_BLOCK_BELL,
+				cp.getPosition(), 2f, 2f);
+		cp.sendPacket(packet);
 	}
 	
 	public void cleanUpPlayer(CustomPlayer player) {
@@ -275,6 +326,25 @@ public abstract class TeamArena extends Game
 				System.out.println(iter.next().toString());
 			}
 			
+			//Map border
+			// Only supports rectangular prism borders as of now
+			ArrayList<String> borders = (ArrayList<String>) map.get("Border");
+			double[] corner1 = BlockStuff.parseCoords(borders.get(0), 0, 0, 0);
+			double[] corner2 = BlockStuff.parseCoords(borders.get(1), 0, 0, 0);
+			border = new MapBorder(corner1, corner2);
+			Main.getLogger().info("MapBorder: " + border.toString());
+			
+			//calculate spawnpoint based on map border
+			Vec centre = border.getCentre();
+			/*Vec spawnpoint = BlockStuff.getFloor(centre, instance);
+			//if not safe to spawn just spawn them in the sky
+			if(spawnpoint == null) {
+				spawnpoint = new Vec(centre.x(), 255, centre.z());
+			}*/
+			centre = BlockStuff.getHighestBlock(centre,instance);
+			spawnPos = centre.asPosition().withYaw(90f).add(0, 1, 0);
+			Main.getLogger().info("spawnPos: " + spawnPos.toString());
+			
 			//Create the teams
 			//Key = team e.g RED, BLUE. value = Map:
 			//		key = "Spawns" value: ArrayList<String>
@@ -301,7 +371,9 @@ public abstract class TeamArena extends Game
 				for(String loc : spawnsList) {
 					double[] coords = BlockStuff.parseCoords(loc, 0.5, 0, 0.5);
 					Pos pos = new Pos(coords[0], coords[1], coords[2]);
-					positionArray[index] = pos;
+					Vec direction = centre.withY(0).sub(spawnPos.withY(0));
+					direction = direction.normalize();
+					positionArray[index] = pos.withDirection(direction);
 					index++;
 				}
 				teamArenaTeam.setSpawns(positionArray);
@@ -309,24 +381,6 @@ public abstract class TeamArena extends Game
 				teamsArrIndex++;
 			}
 			
-			//Map border
-			// Only supports rectangular prism borders as of now
-			ArrayList<String> borders = (ArrayList<String>) map.get("Border");
-			double[] corner1 = BlockStuff.parseCoords(borders.get(0), 0, 0, 0);
-			double[] corner2 = BlockStuff.parseCoords(borders.get(1), 0, 0, 0);
-			border = new MapBorder(corner1, corner2);
-			Main.getLogger().info("MapBorder: " + border.toString());
-			
-			//calculate spawnpoint based on map border
-			Vec centre = border.getCentre();
-			/*Vec spawnpoint = BlockStuff.getFloor(centre, instance);
-			//if not safe to spawn just spawn them in the sky
-			if(spawnpoint == null) {
-				spawnpoint = new Vec(centre.x(), 255, centre.z());
-			}*/
-			centre = BlockStuff.getHighestBlock(centre,instance);
-			spawnPos = centre.asPosition().withYaw(90f).add(0, 1, 0);
-			Main.getLogger().info("spawnPos: " + spawnPos.toString());
 		}
 		catch(IOException e)
 		{
@@ -366,5 +420,9 @@ public abstract class TeamArena extends Game
 				}
 			}
 		}
+	}
+	
+	public Pos getSpawnPos() {
+		return spawnPos;
 	}
 }

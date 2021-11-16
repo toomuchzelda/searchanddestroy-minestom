@@ -4,7 +4,7 @@ import java.util.Random;
 
 public class MathUtils
 {
-	public static Random random = new Random();
+	public static final Random random = new Random();
 	
 	public static double randomRange(double min, double max) {
 		double rand = random.nextDouble() * (max - min);
@@ -13,8 +13,8 @@ public class MathUtils
 	}
 	
 	public static int randomMax(int max) {
-		int rand = random.nextInt();
-		return rand % max;
+		// + 1 to not exclude the max value itself
+		return random.nextInt(max + 1);
 	}
 	
 	public static int randomRange(int min, int max) {

@@ -44,27 +44,27 @@ public class BlockStuff
 	}
 	
 	//get highest coord of solid block at xz point
+	//fuck async bruh
 	public static Vec getHighestBlock (Point pos, InstanceContainer instance) {
+		
 		Vec loc = new Vec(pos.x(), 256, pos.z());
-		if(!instance.isChunkLoaded(pos)) {
-			CompletableFuture<Chunk> future = instance.loadChunk(pos);
-			
-			try {
-				//wait for the thing to load?
-				Chunk chunk = future.get();
-				Main.getLogger().info(chunk.getIdentifier().toString());
-				while(!chunk.getBlock(loc).isSolid()) {
-					//didnt find block
-					if((int) loc.y() == 0) {
-						loc = loc.withY(256);
-						break;
-					}
-					loc = loc.sub(0, 1, 0);
+		
+		CompletableFuture<Chunk> future = instance.loadOptionalChunk(pos);
+		try {
+			//wait for the thing to load?
+			Chunk chunk = future.get();
+			Main.getLogger().info(chunk.getIdentifier().toString());
+			while(!chunk.getBlock(loc).isSolid()) {
+				//didnt find block
+				if((int) loc.y() == 0) {
+					loc = loc.withY(256);
+					break;
 				}
+				loc = loc.sub(0, 1, 0);
 			}
-			catch (Exception e) {
-				e.printStackTrace();
-			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
 		}
 		
 		return loc;

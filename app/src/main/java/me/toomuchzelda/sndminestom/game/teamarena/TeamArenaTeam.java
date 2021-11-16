@@ -27,7 +27,10 @@ public class TeamArenaTeam
 	
 	//in the rare case a player joins during GAME_STARTING, need to find an unused spawn position
 	// to teleport to
-	public boolean[] spawnsTaken;
+	public int spawnsIndex;
+	
+	//abstract score value, game-specific
+	public int score;
 	
 	//reference to game instance
 	private TeamArena teamArena;
@@ -37,6 +40,7 @@ public class TeamArenaTeam
 		this.teamColour = teamColour;
 		spawns = null;
 		this.teamArena = game;
+		score = 0;
 	}
 	
 	public Pos[] getSpawns() {
@@ -45,7 +49,7 @@ public class TeamArenaTeam
 	
 	public void setSpawns(Pos[] array) {
 		this.spawns = array;
-		this.spawnsTaken = new boolean[spawns.length];
+		this.spawnsIndex = 0;
 	}
 	
 	public TeamColours getTeamColour() {
@@ -59,14 +63,14 @@ public class TeamArenaTeam
 			
 			if (entity instanceof CustomPlayer) {
 				CustomPlayer cp = (CustomPlayer) entity;
-				members.add(cp.getUsername());
-				names[i] = cp.getUsername();
 				//if they're already on a team
 				// remove them from that team and update the reference in their own class
 				if(cp.getTeamArenaTeam() != null) {
 					cp.getTeamArenaTeam().removeMembers(cp);
-					cp.setTeamArenaTeam(this);
 				}
+				cp.setTeamArenaTeam(this);
+				members.add(cp.getUsername());
+				names[i] = cp.getUsername();
 			}
 			else {
 				members.add(entity.getUuid().toString());

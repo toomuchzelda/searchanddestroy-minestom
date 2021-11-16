@@ -33,7 +33,6 @@ public class EventListeners
 		
 		eventHandler.addListener(RemoveEntityFromInstanceEvent.class, event -> {
 			if(event.getEntity() instanceof CustomPlayer cPlayer) {
-				//Main.getLogger().info("caught customPlayer joining in event");
 				Game game = Main.getInstanceGame(event.getInstance());
 				if(game instanceof TeamArena teamArena) {
 					teamArena.cleanUpPlayer(cPlayer);

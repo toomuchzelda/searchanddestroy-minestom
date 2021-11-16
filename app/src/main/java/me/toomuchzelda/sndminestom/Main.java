@@ -3,42 +3,35 @@
  */
 package me.toomuchzelda.sndminestom;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-
 import me.toomuchzelda.sndminestom.core.CustomPlayer;
-import me.toomuchzelda.sndminestom.core.MathUtils;
 import me.toomuchzelda.sndminestom.core.commands.CommandStop;
 import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
 import me.toomuchzelda.sndminestom.game.teamarena.commands.CommandKit;
 import me.toomuchzelda.sndminestom.listeners.EventListeners;
-import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import net.minestom.server.command.CommandManager;
-import net.minestom.server.event.instance.InstanceTickEvent;
-import net.minestom.server.instance.*;
-import net.minestom.server.instance.batch.ChunkBatch;
-import net.minestom.server.instance.block.Block;
-import net.minestom.server.listener.manager.PacketListenerManager;
-import net.minestom.server.network.ConnectionManager;
-
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.command.CommandManager;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.instance.InstanceTickEvent;
 import net.minestom.server.event.player.PlayerLoginEvent;
 import net.minestom.server.event.player.PlayerSkinInitEvent;
 import net.minestom.server.event.player.PlayerSpawnEvent;
-import net.minestom.server.network.packet.server.play.SoundEffectPacket;
-import net.minestom.server.sound.SoundEvent;
+import net.minestom.server.extras.MojangAuth;
+import net.minestom.server.instance.*;
+import net.minestom.server.instance.batch.ChunkBatch;
+import net.minestom.server.instance.block.Block;
+import net.minestom.server.network.ConnectionManager;
 import net.minestom.server.world.biomes.Biome;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 public class Main {
 	
@@ -51,6 +44,7 @@ public class Main {
 		//System.setProperty("minestom.tps", "20");
 		
 		MinecraftServer mcServer = MinecraftServer.init();
+		MojangAuth.init();
 		
 		//Create the first game
 		InstanceManager instanceManager = MinecraftServer.getInstanceManager();
