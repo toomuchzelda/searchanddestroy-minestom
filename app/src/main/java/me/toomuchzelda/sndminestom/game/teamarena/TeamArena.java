@@ -13,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
@@ -62,6 +63,8 @@ public abstract class TeamArena extends Game
 	protected MapBorder border;
 	protected Pos spawnPos;
 	
+	public static final NamedTextColor noTeamColour = NamedTextColor.YELLOW;
+	
 	public TeamArena(InstanceContainer instance, String name)
 	{
 		super(instance, name);
@@ -88,6 +91,26 @@ public abstract class TeamArena extends Game
 			players.remove(player);
 			player.getTeamArenaTeam().removeMembers(player);
 			//sync cleanup tasks..
+			
+			//balance teams
+			if(gameState == GameState.PREGAME && teamArenaOptions.BALANCE_TEAMS.value) {
+				int maxTeamSize = players.size() / teams.length;
+				for (TeamArenaTeam team : teams)
+				{
+					if (team.getEntityMembers().size() > maxTeamSize)
+					{
+						//peek not pop, since removeMembers will remove them from the Stack
+						Entity removed = team.lastIn.peek();
+						team.removeMembers(removed);
+						if(removed instanceof CustomPlayer p) {
+							p.sendMessage(Component.text("A player left, so you were removed from your chosen team for balance. Sorry!").color(NamedTextColor.AQUA));
+							SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT,
+									SoundEvent.ENTITY_CHICKEN_HURT, p.getPosition(), 2f, 1f);
+							p.sendPacket(packet);
+						}
+					}
+				}
+			}
 		}
 		
 		//process players that just joined
@@ -98,10 +121,12 @@ public abstract class TeamArena extends Game
 			
 			giveLobbyItems(player);
 			player.refreshCommands();
+			player.setDisplayName(Component.text(player.getUsername()).color(noTeamColour));
 			teamsPacketsManager.sendCreatePackets(player);
 			Pos toTeleport = spawnPos;
 			if((gameState.isPreGame() && teamsDecided) ||
-					(teamArenaOptions.RESPAWNING.value && teamArenaOptions.MID_GAME_JOINING.value)) {
+					(teamArenaOptions.RESPAWNING.value && teamArenaOptions.MID_GAME_JOINING.value
+							&& gameState == GameState.LIVE)) {
 				//put them on team with lowest players, or if already balanced, on lowest scoring teams
 				addToLowestTeam(player);
 				informOfTeam(player);
@@ -113,6 +138,15 @@ public abstract class TeamArena extends Game
 					team.spawnsIndex++;
 				}
 			}
+			
+			//test
+			//use for hiding spectators, players whatevs
+			if(gameState == GameState.LIVE) {
+				players.forEach(customPlayer -> {
+					player.removeViewer(customPlayer);
+				});
+			}
+			
 			//respawnpoint won't really be used, deaths will be handled custom-ly
 			player.setRespawnPoint(spawnPos);
 			final Pos fPos = toTeleport;
@@ -126,110 +160,135 @@ public abstract class TeamArena extends Game
 		//tick for each gamestate
 		if(gameState.isPreGame())
 		{
-			//if countdown is ticking, do announcements
-			if(players.size() >= minPlayersRequired) {
-				//announce Game starting in:
-				// and play sound
-				sendCountdown(false);
-				if(waitingSince + preTeamsTime == gameTick) {
-					//set teams here
-					setupTeams();
-					teamsDecided = true;
-					gameState = GameState.TEAMS_CHOSEN;
-					
-					for (Player p : instance.getPlayers())
-					{
-						CustomPlayer cp = (CustomPlayer) p;
-						//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
-						cp.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
-						informOfTeam(cp);
-						Main.getLogger().info("Decided Teams");
-						//p.sendPacket(packet);
-					}
-					
-					sendCountdown(true);
-				}
-				//Game starting; teleport everyone to spawns and freeze them
-				else if(waitingSince + preTeamsTime + preGameStartingTime == gameTick) {
-					//teleport players to team spawns
-					for(TeamArenaTeam team : teams) {
-						int i = 0;
-						Pos[] spawns = team.getSpawns();
-						for(Entity e : team.getEntityMembers()) {
-							e.teleport(spawns[i % spawns.length]);
-							team.spawnsIndex++;
-							i++;
-						}
-					}
-					
-					//EventListeners.java should stop them from moving
-					gameState = GameState.GAME_STARTING;
-				}
-				//start game
-				else if(waitingSince + totalWaitingTime == gameTick)
+			preGameTick();
+			//once done, sets gameState to LIVE
+		}
+		else if(gameState == GameState.LIVE)
+		{
+		
+		}
+	}
+	
+	public void preGameTick() {
+		//if countdown is ticking, do announcements
+		if(players.size() >= minPlayersRequired) {
+			//announce Game starting in:
+			// and play sound
+			sendCountdown(false);
+			if(waitingSince + preTeamsTime == gameTick) {
+				//set teams here
+				setupTeams();
+				teamsDecided = true;
+				gameState = GameState.TEAMS_CHOSEN;
+				
+				for (Player p : instance.getPlayers())
 				{
-					gameState = GameState.LIVE;
-					
+					CustomPlayer cp = (CustomPlayer) p;
+					//SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.ENTITY_CREEPER_DEATH, p.getPosition(), 99999, 0);
+					cp.sendMessage(Component.text("Teams have been decided!").color(NamedTextColor.RED));
+					informOfTeam(cp);
+					Main.getLogger().info("Decided Teams");
+					//p.sendPacket(packet);
 				}
+				
+				sendCountdown(true);
 			}
-			else {
-				waitingSince = gameTick;
-				gameState = GameState.PREGAME;
-				if(teamsDecided) {
-					//remove players from all teams (and send packets)
-					for(TeamArenaTeam team : teams) {
-						team.removeAllMembers();
+			//Game starting; teleport everyone to spawns and freeze them
+			else if(waitingSince + preTeamsTime + preGameStartingTime == gameTick) {
+				//teleport players to team spawns
+				for(TeamArenaTeam team : teams) {
+					int i = 0;
+					Pos[] spawns = team.getSpawns();
+					for(Entity e : team.getEntityMembers()) {
+						e.teleport(spawns[i % spawns.length]);
+						team.spawnsIndex++;
+						i++;
 					}
 				}
-				teamsDecided = false;
+				
+				//EventListeners.java should stop them from moving
+				gameState = GameState.GAME_STARTING;
 			}
+			//start game
+			else if(waitingSince + totalWaitingTime == gameTick)
+			{
+				gameState = GameState.LIVE;
+				
+			}
+		}
+		else {
+			waitingSince = gameTick;
+			gameState = GameState.PREGAME;
+			if(teamsDecided) {
+				//remove players from all teams (and send packets)
+				for(TeamArenaTeam team : teams) {
+					team.removeAllMembers();
+				}
+			}
+			teamsDecided = false;
 		}
 	}
 	
 	public void setupTeams() {
 		//shuffle order of teams first so certain teams don't always get the odd player(s)
-		TeamArenaTeam[] teamArray = Arrays.copyOf(teams, teams.length);
-		MathUtils.shuffleArray(teamArray);
-		Player[] shuffledPlayers = players.toArray(new Player[0]);
-		if(shuffledPlayers.length > 1)
-			MathUtils.shuffleArray(shuffledPlayers);
+		TeamArenaTeam[] shuffledTeams = Arrays.copyOf(teams, teams.length);
+		MathUtils.shuffleArray(shuffledTeams);
 		
-		int offset = 0;
-		for(TeamArenaTeam team : teamArray)
-		{
-			LinkedList<Player> playersOnThisTeam = new LinkedList<>();
-			for(int i = offset; i < shuffledPlayers.length; i = i + teamArray.length) {
-				playersOnThisTeam.add(shuffledPlayers[i]);
+		//players that didn't choose a team yet
+		ArrayList<CustomPlayer> shuffledPlayers = new ArrayList<>();
+		for(CustomPlayer p : players) {
+			if(p.getTeamArenaTeam() == null)
+				shuffledPlayers.add(p);
+		}
+		//if everyone is already on a team (there is noone without a team selected)
+		if(shuffledPlayers.size() == 0)
+			return;
+		
+		Collections.shuffle(shuffledPlayers);
+		
+		//not considering remainders/odd players
+		int maxOnTeam = players.size() / teams.length;
+		
+		//theoretically playerIdx shouldn't become larger than the number of players
+		int playerIdx = 0;
+		for(TeamArenaTeam team : shuffledTeams) {
+			while(team.getEntityMembers().size() < maxOnTeam) {
+				team.addMembers(shuffledPlayers.get(playerIdx));
+				playerIdx++;
 			}
-			offset++;
-			team.addMembers(playersOnThisTeam.toArray(new Player[0]));
+		}
+		
+		int numOfRemainders = players.size() % teams.length;
+		if(numOfRemainders > 0) {
+			for(int i = 0; i < numOfRemainders; i++) {
+				shuffledTeams[i].addMembers(shuffledPlayers.get(playerIdx));
+				playerIdx++;
+			}
 		}
 	}
 	
 	public void addToLowestTeam(CustomPlayer player) {
 		int remainder = players.size() % teams.length;
-		//see which team has the least players and put that player on that team
-		// if there's more than one with same amount of lowest players, or all teams have balanced players
-		// then we'll do something else
-		int lowest = Integer.MAX_VALUE;
-		TeamArenaTeam lowestTeam = teams[0];
-		for (TeamArenaTeam team : teams)
-		{
-			if (team.getEntityMembers().size() < lowest)
-			{
-				lowest = team.getEntityMembers().size();
+		
+		//find the lowest player count on any of the teams
+		TeamArenaTeam lowestTeam = null;
+		int count = Integer.MAX_VALUE;
+		for(TeamArenaTeam team : teams) {
+			if(team.getEntityMembers().size() < count) {
 				lowestTeam = team;
+				count = team.getEntityMembers().size();
 			}
 		}
 		
-		if(remainder == 1)
-			lowestTeam.addMembers(player);
-		else
+		//if theres only 1 team has 1 less player than the others
+		// put them on that team
+		// else, more than 1 team with the same low player count, judge them based on score
+		if(remainder != teams.length - 1)
 		{
 			//get all teams with that lowest player amount
 			LinkedList<TeamArenaTeam> lowestTeams = new LinkedList<>();
 			for(TeamArenaTeam team : teams) {
-				if(team.getEntityMembers().size() == lowest) {
+				if(team.getEntityMembers().size() == count) {
 					lowestTeams.add(team);
 				}
 			}
@@ -237,24 +296,24 @@ public abstract class TeamArena extends Game
 			//shuffle them, and loop through and get the first one in the list that has the lowest score.
 			Collections.shuffle(lowestTeams);
 			int lowestScore = Integer.MAX_VALUE;
-			TeamArenaTeam finalLowestTeam = teams[0];
 			for(TeamArenaTeam team : lowestTeams) {
 				if(team.score < lowestScore) {
 					lowestScore = team.score;
-					finalLowestTeam = team;
+					lowestTeam = team;
 				}
 			}
-			finalLowestTeam.addMembers(player);
 		}
+		lowestTeam.addMembers(player);
 	}
 	
 	public void informOfTeam(CustomPlayer cp) {
 		String name = cp.getTeamArenaTeam().getTeamColour().getName();
 		TextColor colour = cp.getTeamArenaTeam().getTeamColour().getRGBTextColor();
-		cp.sendMessage(Component.text("You are on ").color(NamedTextColor.GOLD).append(Component.text(name)
-				.color(colour)));
+		Component text = Component.text("You are on ").color(NamedTextColor.GOLD).append(Component.text(name).color(colour));
+		cp.sendMessage(text);
+		cp.showTitle(Title.title(Component.empty(), text));
 		SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.BLOCK_NOTE_BLOCK_BELL,
-				cp.getPosition(), 2f, 2f);
+				cp.getPosition(), 2f, 0.1f);
 		cp.sendPacket(packet);
 	}
 	
@@ -285,11 +344,19 @@ public abstract class TeamArena extends Game
 	
 	public abstract boolean canSelectKitNow();
 	
+	public boolean canSelectTeamNow() {
+		if(gameState == GameState.PREGAME)
+			return true;
+		else
+			return false;
+	}
+	
 	public void selectKit(CustomPlayer player, String kitName) {
 		boolean found = false;
 		for(int i = 0; i < kits.length; i++) {
 			if(kits[i].getName().equalsIgnoreCase(kitName)) {
 				chosenKits.put(player.getUuid(), kits[i]);
+				player.setKit(kits[i]);
 				found = true;
 				player.sendMessage(Component.text("Using kit " + kitName).color(NamedTextColor.BLUE));
 				//play sound
@@ -302,6 +369,43 @@ public abstract class TeamArena extends Game
 		
 		if(!found)
 			player.sendMessage(Component.text("Kit " + kitName + " doesn't exist").color(NamedTextColor.RED));
+	}
+	
+	public void selectTeam(CustomPlayer player, String teamName) {
+		//see if team by this name exists
+		TeamArenaTeam requestedTeam = null;
+		for(TeamArenaTeam team : teams) {
+			if(team.getTeamColour().getSimpleName().equalsIgnoreCase(teamName)) {
+				requestedTeam = team;
+				break;
+			}
+		}
+		//if team wasn't found
+		if(requestedTeam == null) {
+			player.sendMessage(Component.text("Could not find team: " + teamName).color(NamedTextColor.RED));
+			return;
+		}
+		
+		//figure out if the team can hold any more players
+		int numPlayers = players.size();
+		int maxOnTeam = numPlayers / teams.length;
+		if(numPlayers % teams.length > 0)
+			maxOnTeam++;
+		
+		if(requestedTeam.getEntityMembers().size() >= maxOnTeam) {
+			player.sendMessage(Component.text("This team is already full!").color(NamedTextColor.RED));
+		}
+		else {
+			if(player.getTeamArenaTeam() != null) {
+				player.getTeamArenaTeam().removeMembers(player);
+			}
+			requestedTeam.addMembers(player);
+			player.sendMessage(Component.text("You are now on " + requestedTeam.getTeamColour().getName())
+					.color(requestedTeam.getTeamColour().getRGBTextColor()));
+			SoundEffectPacket packet = SoundEffectPacket.create(Sound.Source.AMBIENT, SoundEvent.BLOCK_NOTE_BLOCK_PLING,
+					player.getPosition() , 1f, 2f);
+			player.sendPacket(packet);
+		}
 	}
 	
 	public Kit[] getKits() {

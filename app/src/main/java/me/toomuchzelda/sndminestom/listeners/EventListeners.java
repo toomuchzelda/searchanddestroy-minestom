@@ -10,6 +10,7 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.instance.AddEntityToInstanceEvent;
 import net.minestom.server.event.instance.RemoveEntityFromInstanceEvent;
+import net.minestom.server.event.player.PlayerBlockBreakEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerMoveEvent;
 
@@ -52,6 +53,10 @@ public class EventListeners
 						event.setCancelled(true);
 				}
 			}
+		});
+		
+		eventHandler.addListener(PlayerBlockBreakEvent.class, event -> {
+			event.setCancelled(true);
 		});
 	}
 }

@@ -9,6 +9,7 @@ import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.KingOfTheHill;
 import me.toomuchzelda.sndminestom.game.teamarena.commands.CommandKit;
+import me.toomuchzelda.sndminestom.game.teamarena.commands.CommandTeam;
 import me.toomuchzelda.sndminestom.listeners.EventListeners;
 import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
@@ -117,6 +118,7 @@ public class Main {
 		CommandManager manager = MinecraftServer.getCommandManager();
 		manager.register(new CommandStop());
 		manager.register(new CommandKit());
+		manager.register(new CommandTeam());
 	}
 	
 	public static Game getInstanceGame(Instance instance) {

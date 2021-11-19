@@ -11,10 +11,7 @@ import net.minestom.server.entity.Player;
 import net.minestom.server.network.packet.server.play.TeamsPacket;
 import net.minestom.server.scoreboard.Scoreboard;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TeamArenaTeam
@@ -24,6 +21,10 @@ public class TeamArenaTeam
 	//only add to from this object's encapsulating TeamArena object's tick() method
 	private Set<String> members = ConcurrentHashMap.newKeySet();
 	private Set<Entity> entityMembers = ConcurrentHashMap.newKeySet();
+	
+	//if someone needs to be booted out when a player leaves before game start
+	//only used before teams decided
+	public Stack<Entity> lastIn = new Stack<>();
 	
 	//in the rare case a player joins during GAME_STARTING, need to find an unused spawn position
 	// to teleport to
@@ -69,6 +70,7 @@ public class TeamArenaTeam
 					cp.getTeamArenaTeam().removeMembers(cp);
 				}
 				cp.setTeamArenaTeam(this);
+				cp.setDisplayName(Component.text(cp.getUsername()).color(this.getTeamColour().getRGBTextColor()));
 				members.add(cp.getUsername());
 				names[i] = cp.getUsername();
 			}
@@ -77,6 +79,7 @@ public class TeamArenaTeam
 				names[i] = entity.getUuid().toString();
 			}
 			entityMembers.add(entity);
+			lastIn.push(entity);
 		}
 		
 		final TeamsPacket addPacket = new TeamsPacket();
@@ -98,12 +101,14 @@ public class TeamArenaTeam
 				members.remove(cp.getUsername());
 				names[i] = cp.getUsername();
 				cp.setTeamArenaTeam(null);
+				cp.setDisplayName(Component.text(cp.getUsername()).color(TeamArena.noTeamColour));
 			}
 			else {
 				members.remove(entity.getUuid().toString());
 				names[i] = entity.getUuid().toString();
 			}
 			entityMembers.remove(entity);
+			lastIn.remove(entity);
 		}
 		
 		final TeamsPacket removePacket = new TeamsPacket();
@@ -147,7 +152,7 @@ public class TeamArenaTeam
 		packet.nameTagVisibility = TeamsPacket.NameTagVisibility.NEVER;
 		packet.collisionRule = TeamsPacket.CollisionRule.NEVER;
 		packet.teamColor = NamedTextColor.nearestTo(getTeamColour().getRGBTextColor());
-		packet.teamPrefix = Component.text(getTeamColour().getName()).color(getTeamColour().getRGBTextColor());
+		//packet.teamPrefix = Component.text(getTeamColour().getName()).color(getTeamColour().getRGBTextColor());
 		packet.entities = getTeamsPacketEntities();
 		
 		return packet;
