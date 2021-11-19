@@ -37,6 +37,7 @@ public abstract class TeamArena extends Game
 {
 	protected final String mapPath = "Maps/TeamArena";
 	protected TeamArenaTeam[] teams;
+	protected TeamArenaTeam noTeamTeam = new TeamArenaTeam(TeamColours.YELLOW, this);
 	
 	protected ConcurrentLinkedQueue<CustomPlayer> joiningQueue = new ConcurrentLinkedQueue<>();
 	protected ConcurrentLinkedQueue<CustomPlayer> leavingQueue = new ConcurrentLinkedQueue<>();
@@ -59,6 +60,7 @@ public abstract class TeamArena extends Game
 	
 	protected TeamsPacketsManager teamsPacketsManager;
 	protected TeamArenaOptions teamArenaOptions;
+	protected HoloNameTracker holoNameTracker;
 	
 	protected MapBorder border;
 	protected Pos spawnPos;
@@ -78,6 +80,7 @@ public abstract class TeamArena extends Game
 		
 		this.teamsPacketsManager = new TeamsPacketsManager(this);
 		teamArenaOptions = new TeamArenaOptions();
+		holoNameTracker = new HoloNameTracker(this);
 		waitingSince = 0;
 	}
 	
@@ -121,7 +124,6 @@ public abstract class TeamArena extends Game
 			
 			giveLobbyItems(player);
 			player.refreshCommands();
-			player.setDisplayName(Component.text(player.getUsername()).color(noTeamColour));
 			teamsPacketsManager.sendCreatePackets(player);
 			Pos toTeleport = spawnPos;
 			if((gameState.isPreGame() && teamsDecided) ||
@@ -138,22 +140,28 @@ public abstract class TeamArena extends Game
 					team.spawnsIndex++;
 				}
 			}
+			else if (gameState == GameState.PREGAME) {
+				noTeamTeam.addMembers(player);
+			}
+			//TODO: else if live, put them in spectator, or ready to respawn
 			
 			//test
 			//use for hiding spectators, players whatevs
-			if(gameState == GameState.LIVE) {
+			/*if(gameState == GameState.LIVE) {
 				players.forEach(customPlayer -> {
 					player.removeViewer(customPlayer);
 				});
-			}
+			}*/
 			
 			//respawnpoint won't really be used, deaths will be handled custom-ly
 			player.setRespawnPoint(spawnPos);
+			HoloNameTracker.createName(player);
 			final Pos fPos = toTeleport;
 			//sigh
 			// scheduling this prevents some annoying weird desync bug as of 16/11/2021
 			MinecraftServer.getUpdateManager().addTickStartCallback(value -> {
 				player.teleport(fPos);
+				player.getNametag().setPosition(player.getPosition());
 			});
 		}
 		
@@ -237,7 +245,7 @@ public abstract class TeamArena extends Game
 		//players that didn't choose a team yet
 		ArrayList<CustomPlayer> shuffledPlayers = new ArrayList<>();
 		for(CustomPlayer p : players) {
-			if(p.getTeamArenaTeam() == null)
+			if(/*p.getTeamArenaTeam() == null || */p.getTeamArenaTeam() == noTeamTeam)
 				shuffledPlayers.add(p);
 		}
 		//if everyone is already on a team (there is noone without a team selected)

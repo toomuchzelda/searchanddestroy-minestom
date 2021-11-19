@@ -38,6 +38,7 @@ public class TeamsPacketsManager
 		for(TeamsPacket packet : packets) {
 			player.sendPacket(packet);
 		}
+		player.sendPacket(game.noTeamTeam.createCreateTeamPacket());
 	}
 	
 	public void sendDestroyPackets(Player player) {

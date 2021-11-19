@@ -5,6 +5,7 @@ import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.TeamArenaTeam;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
 import net.minestom.server.entity.Player;
+import net.minestom.server.entity.hologram.Hologram;
 import net.minestom.server.network.player.PlayerConnection;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,6 +19,7 @@ public class CustomPlayer extends Player
 	private Kit kit;
 	private Rank rank;
 	private Game game;
+	private Hologram nametag;
 	
 	public CustomPlayer(@NotNull UUID uuid, @NotNull String username, @NotNull PlayerConnection playerConnection)
 	{
@@ -32,6 +34,17 @@ public class CustomPlayer extends Player
 	
 	public TeamArenaTeam getTeamArenaTeam() {
 		return this.team;
+	}
+	
+	//use these instead of entity addViewer
+	public void addNameViewer(CustomPlayer player) {
+		nametag.addViewer(player);
+		this.addViewer(player);
+	}
+	
+	public void removeNameViewer(CustomPlayer player) {
+		nametag.removeViewer(player);
+		this.removeViewer(player);
 	}
 	
 	public Rank getRank() {
@@ -56,5 +69,13 @@ public class CustomPlayer extends Player
 	
 	public void setKit(Kit kit) {
 		this.kit = kit;
+	}
+	
+	public Hologram getNametag() {
+		return nametag;
+	}
+	
+	public void setNametag(Hologram nametag) {
+		this.nametag = nametag;
 	}
 }
