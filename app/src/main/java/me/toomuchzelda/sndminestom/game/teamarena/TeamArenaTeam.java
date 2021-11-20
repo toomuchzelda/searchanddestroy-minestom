@@ -149,7 +149,7 @@ public class TeamArenaTeam
 		packet.teamDisplayName = Component.text(getTeamColour().getName())
 				.color(getTeamColour().getRGBTextColor());
 		packet.friendlyFlags = TeamsPacketsManager.friendlyFireAndInvisBits(true, true);
-		packet.nameTagVisibility = TeamsPacket.NameTagVisibility.NEVER;
+		packet.nameTagVisibility = TeamsPacket.NameTagVisibility.ALWAYS;
 		packet.collisionRule = TeamsPacket.CollisionRule.NEVER;
 		packet.teamColor = NamedTextColor.nearestTo(getTeamColour().getRGBTextColor());
 		//packet.teamPrefix = Component.text(getTeamColour().getName()).color(getTeamColour().getRGBTextColor());

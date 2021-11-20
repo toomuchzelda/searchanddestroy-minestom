@@ -19,6 +19,7 @@ import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
+import net.minestom.server.entity.hologram.Hologram;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.inventory.PlayerInventory;
 import net.minestom.server.item.ItemStack;
@@ -60,7 +61,6 @@ public abstract class TeamArena extends Game
 	
 	protected TeamsPacketsManager teamsPacketsManager;
 	protected TeamArenaOptions teamArenaOptions;
-	protected HoloNameTracker holoNameTracker;
 	
 	protected MapBorder border;
 	protected Pos spawnPos;
@@ -80,7 +80,7 @@ public abstract class TeamArena extends Game
 		
 		this.teamsPacketsManager = new TeamsPacketsManager(this);
 		teamArenaOptions = new TeamArenaOptions();
-		holoNameTracker = new HoloNameTracker(this);
+		//holoNameTracker = new HoloNameTracker(this);
 		waitingSince = 0;
 	}
 	
@@ -143,7 +143,7 @@ public abstract class TeamArena extends Game
 			else if (gameState == GameState.PREGAME) {
 				noTeamTeam.addMembers(player);
 			}
-			//TODO: else if live, put them in spectator, or ready to respawn
+			//TODO: else if live, put them in spectator, or prepare to respawn
 			
 			//test
 			//use for hiding spectators, players whatevs
@@ -155,13 +155,15 @@ public abstract class TeamArena extends Game
 			
 			//respawnpoint won't really be used, deaths will be handled custom-ly
 			player.setRespawnPoint(spawnPos);
-			HoloNameTracker.createName(player);
+			createName(player);
 			final Pos fPos = toTeleport;
 			//sigh
 			// scheduling this prevents some annoying weird desync bug as of 16/11/2021
 			MinecraftServer.getUpdateManager().addTickStartCallback(value -> {
 				player.teleport(fPos);
-				player.getNametag().setPosition(player.getPosition());
+				//player.getNametag().setPosition(player.getPosition());
+				double height = player.getBoundingBox().getHeight();
+				player.getNametag().getEntity().teleport(player.getPosition().add(0, height, 0));
 			});
 		}
 		
@@ -330,6 +332,18 @@ public abstract class TeamArena extends Game
 		
 		//for sync-required tasks
 		leavingQueue.add(player);
+	}
+	
+	public static void createName(CustomPlayer player) {
+		//player must be on a TeamArenaTeam before using this on them
+		Component name = Component.text(player.getUsername())
+				.color(player.getTeamArenaTeam().getTeamColour().getRGBTextColor());
+		
+		Hologram hologram = new Hologram(player.getGame().getInstance(), player.getPosition(), name, true, true);
+		player.setNametag(hologram);
+		
+		//only those who can view the player can view the armour stand
+		hologram.getEntity().updateViewableRule(player1 -> player.isViewer(player1));
 	}
 	
 	@Override

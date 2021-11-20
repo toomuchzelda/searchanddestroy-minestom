@@ -4,6 +4,7 @@ import me.toomuchzelda.sndminestom.core.ranks.Rank;
 import me.toomuchzelda.sndminestom.game.Game;
 import me.toomuchzelda.sndminestom.game.teamarena.TeamArenaTeam;
 import me.toomuchzelda.sndminestom.game.teamarena.kits.Kit;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.hologram.Hologram;
 import net.minestom.server.network.player.PlayerConnection;
@@ -26,6 +27,7 @@ public class CustomPlayer extends Player
 		super(uuid, username, playerConnection);
 		team = null;
 		rank = Rank.PLAYER;
+		
 	}
 	
 	public void setTeamArenaTeam(TeamArenaTeam team) {
@@ -34,17 +36,6 @@ public class CustomPlayer extends Player
 	
 	public TeamArenaTeam getTeamArenaTeam() {
 		return this.team;
-	}
-	
-	//use these instead of entity addViewer
-	public void addNameViewer(CustomPlayer player) {
-		nametag.addViewer(player);
-		this.addViewer(player);
-	}
-	
-	public void removeNameViewer(CustomPlayer player) {
-		nametag.removeViewer(player);
-		this.removeViewer(player);
 	}
 	
 	public Rank getRank() {

@@ -15,6 +15,7 @@ import net.kyori.adventure.text.Component;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.CommandManager;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.event.GlobalEventHandler;
@@ -81,7 +82,25 @@ public class Main {
 		
 		//Run the game ticks on every instance tick
 		globalEventHandler.addListener(InstanceTickEvent.class, instanceTickEvent -> {
-			gameInstances.get(instanceTickEvent.getInstance()).tick();
+			
+			Game game = gameInstances.get(instanceTickEvent.getInstance());
+			//manually update hitbox size on players pose because minestom doesn't
+			for(Player p : game.getPlayers()) {
+				double width = p.getBoundingBox().getWidth();
+				double length = p.getBoundingBox().getDepth();
+				double height;
+				
+				switch(p.getPose()) {
+					case FALL_FLYING -> height = 0.6;
+					case SWIMMING, SPIN_ATTACK -> height = 0.625; //assumed spin attack is same as swimming
+					case SNEAKING -> height = 1.5;
+					default -> height = 1.8;
+				}
+				
+				p.setBoundingBox(width, height, length);
+			}
+			
+			game.tick();
 		});
 		
 		registerCommands();
